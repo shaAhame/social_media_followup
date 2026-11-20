@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% macro bar(value, max_value, label) -%}
+<div class="bar-track" title="{{ label }}"><div class="bar-fill" style="width: {{ (100 * value / max_value) if max_value else 0 }}%"></div></div>
+{%- endmacro %}
+{% macro breakdown(title, rows, first_col) %}
+<section class="card">
+  <h3>{{ title }}</h3>
+  {% if rows %}
+  {% set max_total = rows|map(attribute='total')|max %}
+  <div class="table-wrap" style="border:0">
+    <table>
+      <thead><tr><th>{{ first_col }}</th><th class="num">Inquiries</th><th class="bar-cell"></th><th class="num">Sold</th><th class="num">Lost</th><th class="num">Open</th><th class="num">Conversion</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.label }}</td>
+          <td class="num">{{ r.total }}</td>
+          <td class="bar-cell">{{ bar(r.total, max_total, r.label ~ ': ' ~ r.total ~ ' inquiries') }}</td>
+          <td class="num">{{ r.won }}</td>
+          <td class="num">{{ r.lost }}</td>
+          <td class="num">{{ r.open }}</td>
+          <td class="num">{{ r.conversion }}%</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty">No data for this period.</div>{% endif %}
+</section>
+{% endmacro %}
+{% block content %}
+{% set r = report %}
+<div class="page-head">
+  <div>
+    <h1>Reports</h1>
+    <div class="muted">Inquiries logged {{ r.start.strftime('%d %b %Y') }} – {{ r.end.strftime('%d %b %Y') }}</div>
+  </div>
+  <form method="get" class="filters" style="margin:0">
+    <div class="field"><label for="start">From</label><input id="start" type="date" name="start" value="{{ r.start }}"></div>
+    <div class="field"><label for="end">To</label><input id="end" type="date" name="end" value="{{ r.end }}"></div>
+    <button class="btn" type="submit">Show</button>
+  </form>
+</div>
+<p>{% for name, (s, e) in presets.items() %}<a class="btn btn-small" href="/reports?start={{ s }}&end={{ e }}">{{ name }}</a> {% endfor %}
+{% if user.can_manage %}<a class="btn btn-small" href="/inquiries/export.csv?view=all&date_from={{ r.start }}&date_to={{ r.end }}&assigned=">Download these inquiries (CSV)</a>{% endif %}</p>
+
+<div class="tiles">
+  <div class="tile"><div class="value">{{ r.summary.total }}</div><div class="label">Inquiries</div></div>
+  <div class="tile"><div class="value">{{ r.summary.won }}</div><div class="label">Sold</div></div>
+  <div class="tile"><div class="value">{{ r.summary.conversion }}%</div><div class="label">Conversion</div></div>
+  <div class="tile"><div class="value">{{ r.summary.lost }}</div><div class="label">Lost</div></div>
+  <div class="tile"><div class="value">{{ r.summary.open }}</div><div class="label">Still open</div></div>
+  <div class="tile"><div class="value">{{ r.median_first_response_min|minutes }}</div><div class="label">Median time to first response</div></div>
+  <div class="tile"><div class="value">{{ r.pct_responded_within_15_min if r.pct_responded_within_15_min is not none else '—' }}<small>{{ '%' if r.pct_responded_within_15_min is not none }}</small></div><div class="label">Responded within 15 min</div></div>
+</div>
+
+<section class="card">
+  <h3>Inquiries per day</h3>
+  <div class="daily-chart" role="img" aria-label="Inquiries per day">
+    {% for day, count in r.daily %}
+      <div class="col" title="{{ day.strftime('%a %d %b') }}: {{ count }} inquir{{ 'y' if count == 1 else 'ies' }}">
+        <div class="colbar" style="height: {{ (100 * count / r.max_daily) if r.max_daily else 0 }}%"></div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="daily-axis"><span>{{ r.start.strftime('%d %b') }}</span><span>Peak: {{ r.max_daily }} / day</span><span>{{ r.end.strftime('%d %b') }}</span></div>
+</section>
+
+{{ breakdown('By source (hotline / social channel)', r.by_channel, 'Source') }}
+
+<section class="card">
+  <h3>By salesperson</h3>
+  {% if r.by_user %}
+  <div class="table-wrap" style="border:0">
+    <table>
+      <thead><tr><th>Salesperson</th><th class="num">Inquiries</th><th class="num">Sold</th><th class="num">Lost</th><th class="num">Open</th><th class="num">Conversion</th><th class="num">Median first response</th><th class="num">Overdue now</th></tr></thead>
+      <tbody>
+      {% for u in r.by_user %}
+        <tr>
+          <td>{{ u.label }}</td><td class="num">{{ u.total }}</td><td class="num">{{ u.won }}</td><td class="num">{{ u.lost }}</td>
+          <td class="num">{{ u.open }}</td><td class="num">{{ u.conversion }}%</td>
+          <td class="num">{{ u.median_first_response_min|minutes }}</td>
+          <td class="num {{ 'field-error' if u.overdue_now }}">{{ u.overdue_now }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty">No data for this period.</div>{% endif %}
+</section>
+
+<div style="margin-top:1rem">{{ breakdown('By buying time period', r.by_timeframe, 'Time period') }}</div>
+
+<div style="margin-top:1rem">
+  <section class="card">
+    <h3>Why we lost sales</h3>
+    {% if r.lost_reasons %}
+    {% set max_lost = r.lost_reasons|map(attribute=1)|max %}
+    <table>
+      <tbody>
+      {% for reason, count in r.lost_reasons %}
+        <tr><td>{{ reason }}</td><td class="num">{{ count }}</td><td class="bar-cell">{{ bar(count, max_lost, reason ~ ': ' ~ count) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty">No lost inquiries in this period.</div>{% endif %}
+  </section>
+</div>
+
+<div style="margin-top:1rem">{{ breakdown('Most asked-for products', r.top_products, 'Product') }}</div>
+{% endblock %}

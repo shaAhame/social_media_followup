@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ greeting() }}, {{ user.first_name }}</h1>
+    <div class="muted">{{ 'Your leads' if scoped else 'All hotlines and social channels' }} · {{ today().strftime('%A %d %B %Y') }}</div>
+  </div>
+  <a class="btn btn-primary" href="/inquiries/new">+ Log a new inquiry</a>
+</div>
+
+<div class="tiles">
+  <a class="tile {{ 'alert-tile' if stats.overdue }}" href="/followups{{ '?owner=me' if scoped }}">
+    <div class="value">{{ stats.overdue }}</div><div class="label">Overdue follow-ups</div>
+  </a>
+  <a class="tile" href="/followups{{ '?owner=me' if scoped }}">
+    <div class="value">{{ stats.due_today }}</div><div class="label">Due later today</div>
+  </a>
+  <a class="tile" href="/inquiries?view=all&date_from={{ today() }}{{ '&assigned=me' if scoped else '&assigned=' }}">
+    <div class="value">{{ stats.new_today }}</div><div class="label">New inquiries today</div>
+  </a>
+  <a class="tile" href="/inquiries{{ '' if scoped else '?assigned=' }}">
+    <div class="value">{{ stats.open }}</div><div class="label">Open inquiries</div>
+  </a>
+  <div class="tile">
+    <div class="value">{{ stats.month_won }} <small>/ {{ stats.month_total }}</small></div>
+    <div class="label">Sold this month ({{ stats.month_conversion }}%)</div>
+  </div>
+  {% if not scoped %}
+  <a class="tile {{ 'alert-tile' if stats.unassigned }}" href="/inquiries?assigned=none">
+    <div class="value">{{ stats.unassigned }}</div><div class="label">Open and unassigned</div>
+  </a>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  <section>
+    <h2>Call now <small>(overdue first, then today by urgency)</small></h2>
+    {% if call_list %}
+      <div class="leads">{% for i in call_list %}{{ m.lead_card(i, '/') }}{% endfor %}</div>
+      <p><a href="/followups{{ '?owner=me' if scoped }}">See the full follow-up list →</a></p>
+    {% else %}
+      <div class="empty">Nothing due right now. 🎉</div>
+    {% endif %}
+    {% if stats.needs_decision %}
+      <div class="alert alert-warn" style="margin-top:1rem">
+        {{ stats.needs_decision }} open inquir{{ 'y has' if stats.needs_decision == 1 else 'ies have' }} used all automatic follow-ups.
+        <a href="/followups{{ '?owner=me' if scoped }}#decide">Mark them sold, lost, or set a new date.</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if recent %}
+  <section>
+    <h2>Latest inquiries</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Product</th><th>Source</th><th>Logged</th></tr></thead>
+        <tbody>
+        {% for i in recent %}
+          <tr>
+            <td><a href="/inquiries/{{ i.id }}">{{ i.customer.display_name }}</a><br><small>{{ i.customer.phone_e164|phone }}</small></td>
+            <td>{{ i.product_text }}<br>{{ m.timeframe_badge(i.timeframe) }}</td>
+            <td>{{ i.channel.name }}</td>
+            <td class="nowrap">{{ i.created_at|reltime }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

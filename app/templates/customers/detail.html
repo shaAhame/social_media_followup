@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ customer.display_name }}{% endblock %}
+{% block content %}
+<div class="detail-head">
+  <div>
+    <div class="muted">Customer since {{ customer.created_at|localdt('%d %b %Y') }}</div>
+    <h1>{{ customer.display_name }}</h1>
+    <div style="font-size:1.1rem">{{ customer.phone_e164|phone }}</div>
+  </div>
+  <div class="lead-actions">
+    <a class="btn btn-wa" href="{{ whatsapp_link(customer.phone_e164) }}" target="_blank" rel="noopener">WhatsApp</a>
+    <a class="btn" href="{{ tel_link(customer.phone_e164) }}">Call</a>
+    <a class="btn btn-primary" href="/inquiries/new?phone={{ customer.phone_e164|urlencode }}">+ New inquiry</a>
+  </div>
+</div>
+
+<div class="grid grid-2" style="margin-top:1rem">
+  <section>
+    <h2>Inquiries ({{ customer.inquiries|length }})</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Product</th><th>Status</th><th>Source</th><th>Logged</th></tr></thead>
+        <tbody>
+        {% for i in customer.inquiries %}
+          <tr>
+            <td><a href="/inquiries/{{ i.id }}">{{ i.id }}</a></td>
+            <td>{{ i.product_text }}<br>{{ m.timeframe_badge(i.timeframe) }}</td>
+            <td>{{ m.status_badge(i.status) }}</td>
+            <td>{{ i.channel.name }}<br><small>{{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</small></td>
+            <td class="nowrap">{{ i.created_at|localdt('%d %b %Y') }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section>
+    <h2>Details</h2>
+    {% if user.can_coordinate %}
+    <form method="post" action="/customers/{{ customer.id }}" class="card">
+      {{ m.csrf() }}
+      <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" value="{{ customer.name or '' }}" maxlength="120"></div>
+      <div class="field"><label for="notes">Notes about this customer</label><textarea id="notes" name="notes">{{ customer.notes or '' }}</textarea></div>
+      <div class="field">
+        <label class="checkbox"><input type="checkbox" name="marketing_consent" value="1" {{ 'checked' if customer.marketing_consent }}> Agreed to receive offers on WhatsApp</label>
+        {% if customer.consent_at %}<div class="hint">Consent recorded {{ customer.consent_at|localdt }}</div>{% endif %}
+      </div>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+    {% else %}
+    <div class="card">
+      <p>{{ customer.notes or 'No notes.' }}</p>
+      <p class="muted">Offers consent: {{ 'Yes' if customer.marketing_consent else 'No' }}</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

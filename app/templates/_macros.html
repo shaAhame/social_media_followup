@@ -1,0 +1,51 @@
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+<span class="badge status-{{ status.value }}">{{ status.label }}</span>
+{%- endmacro %}
+
+{% macro timeframe_badge(timeframe) -%}
+<span class="badge tf-{{ timeframe.value }}">{{ timeframe.label }}</span>
+{%- endmacro %}
+
+{% macro error(errors, name) -%}
+{% if errors and errors.get(name) %}<div class="field-error">{{ errors[name] }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro options(choices, selected, blank=None) -%}
+{% if blank is not none %}<option value="">{{ blank }}</option>{% endif %}
+{% for value, label in choices %}
+<option value="{{ value }}" {{ 'selected' if value|string == selected|string }}>{{ label }}</option>
+{% endfor %}
+{%- endmacro %}
+
+{% macro lead_card(i, return_to='') -%}
+{% set href = '/inquiries/' ~ i.id ~ ('?return_to=' ~ (return_to|urlencode) if return_to else '') %}
+<div class="lead {{ 'is-overdue' if is_overdue(i.next_followup_at) }}">
+  <div class="lead-main">
+    <a class="lead-title" href="{{ href }}">{{ i.customer.display_name }}</a>
+    <span class="muted nowrap">{{ i.customer.phone_e164|phone }}</span>
+    <div class="lead-product">{{ i.product_text }}</div>
+    <div class="lead-meta">
+      {{ timeframe_badge(i.timeframe) }} {{ status_badge(i.status) }}
+      <span class="muted">{{ i.channel.name }}</span>
+      <span class="muted">· {{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</span>
+      {% if i.followup_count %}<span class="muted">· {{ i.followup_count }} follow-up{{ 's' if i.followup_count != 1 }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="lead-side">
+    {% if i.next_followup_at %}
+      <div class="due">{{ i.next_followup_at|smartdt }}<small>{{ i.next_followup_at|reltime }}</small></div>
+    {% else %}
+      <div class="due muted">No date set</div>
+    {% endif %}
+    <div class="lead-actions">
+      <a class="btn btn-wa btn-small" href="{{ followup_whatsapp(i, user) }}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn btn-small" href="{{ tel_link(i.customer.phone_e164) }}">Call</a>
+      <a class="btn btn-small" href="{{ href }}#log">Log result</a>
+    </div>
+  </div>
+</div>
+{%- endmacro %}

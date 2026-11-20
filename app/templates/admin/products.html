@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Products{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+  <div>
+    <h1>Products</h1>
+    <div class="muted">Optional. Products listed here are suggested while typing, so reports group "iphone 16 pro" and "iPhone 16 Pro" together.</div>
+  </div>
+</div>
+<div class="grid grid-2">
+  <form method="post" action="/admin/products" class="card">
+    {{ m.csrf() }}
+    <h3>Add products</h3>
+    <div class="field"><label for="names">One product per line</label><textarea id="names" name="names" rows="8" placeholder="iPhone 16 Pro 256GB&#10;Samsung Galaxy S25 Ultra 512GB&#10;AirPods Pro 2" required></textarea></div>
+    <div class="field"><label for="brand">Brand (optional)</label><input id="brand" name="brand" type="text" placeholder="Apple"></div>
+    <button class="btn btn-primary" type="submit">Add</button>
+  </form>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Product</th><th>Brand</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for p in rows %}
+        <tr>
+          <td>{{ p.name }}</td><td>{{ p.brand or '' }}</td><td>{{ 'Active' if p.is_active else 'Hidden' }}</td>
+          <td class="right"><form method="post" action="/admin/products/{{ p.id }}/toggle" class="inline">{{ m.csrf() }}<button class="btn btn-small" type="submit">{{ 'Hide' if p.is_active else 'Show' }}</button></form></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">No products yet. Staff can still type any product.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

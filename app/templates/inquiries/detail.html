@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set c = inquiry.customer %}
+{% block title %}#{{ inquiry.id }} {{ c.display_name }}{% endblock %}
+{% block content %}
+<div class="detail-head">
+  <div>
+    <div class="muted">Inquiry #{{ inquiry.id }} · logged {{ inquiry.created_at|localdt }}{% if inquiry.created_by %} by {{ inquiry.created_by.full_name }}{% endif %}</div>
+    <h1><a href="/customers/{{ c.id }}">{{ c.display_name }}</a> {{ m.status_badge(inquiry.status) }}</h1>
+    <div style="font-size:1.1rem">{{ c.phone_e164|phone }}</div>
+  </div>
+  <div class="lead-actions">
+    <a class="btn btn-wa" href="{{ followup_whatsapp(inquiry, user) }}" target="_blank" rel="noopener">WhatsApp</a>
+    <a class="btn" href="{{ tel_link(c.phone_e164) }}">Call</a>
+    {% if can_edit %}<a class="btn" href="/inquiries/{{ inquiry.id }}/edit">Edit</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2" style="margin-top:1rem">
+  <div>
+    <div class="card">
+      <dl class="facts">
+        <div><dt>Product</dt><dd>{{ inquiry.product_text }}</dd></div>
+        <div><dt>Time period</dt><dd>{{ m.timeframe_badge(inquiry.timeframe) }}</dd></div>
+        <div><dt>Source</dt><dd>{{ inquiry.channel.name }}</dd></div>
+        <div><dt>Payment</dt><dd>{{ inquiry.payment_type.label if inquiry.payment_type else '—' }}</dd></div>
+        <div><dt>Budget</dt><dd>{{ inquiry.budget_lkr|lkr or '—' }}</dd></div>
+        <div><dt>Salesperson</dt><dd>
+          {% if inquiry.assigned_to %}{{ inquiry.assigned_to.full_name }}{% else %}<em>Unassigned</em>{% endif %}
+          {% if inquiry.is_open and inquiry.assigned_to_id != user.id and (not inquiry.assigned_to or user.can_coordinate) %}
+          <form method="post" action="/inquiries/{{ inquiry.id }}/claim" class="inline">{{ m.csrf() }}<button class="btn btn-small" type="submit">Assign to me</button></form>
+          {% endif %}
+        </dd></div>
+        <div><dt>Next follow-up</dt><dd class="{{ 'field-error' if is_overdue(inquiry.next_followup_at) }}">
+          {% if inquiry.next_followup_at %}{{ inquiry.next_followup_at|smartdt }} <small>({{ inquiry.next_followup_at|reltime }})</small>
+          {% elif inquiry.is_open %}<strong>Needs decision</strong>{% else %}—{% endif %}
+        </dd></div>
+        <div><dt>Follow-ups done</dt><dd>{{ inquiry.followup_count }}</dd></div>
+        <div><dt>First response</dt><dd>{{ inquiry.first_response_at|localdt or 'Not yet' }}</dd></div>
+        {% if inquiry.lost_reason %}<div><dt>Lost reason</dt><dd>{{ inquiry.lost_reason.label }}</dd></div>{% endif %}
+        <div><dt>Offers consent</dt><dd>{{ 'Yes' if c.marketing_consent else 'No' }}</dd></div>
+      </dl>
+      {% if inquiry.notes %}<h3 style="margin-top:1rem">Notes</h3><div class="note" style="white-space:pre-wrap">{{ inquiry.notes }}</div>{% endif %}
+    </div>
+
+    {% if other_open %}
+    <div class="card">
+      <h3>Other open inquiries from this customer</h3>
+      <ul>{% for o in other_open %}<li><a href="/inquiries/{{ o.id }}">#{{ o.id }} {{ o.product_text }}</a> · {{ o.status.label }} · {{ o.channel.name }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    {% if can_edit and inquiry.is_open %}
+    <form id="log" method="post" action="/inquiries/{{ inquiry.id }}/log" class="card">
+      {{ m.csrf() }}
+      <input type="hidden" name="return_to" value="{{ return_to or '' }}">
+      <h3>Log a follow-up</h3>
+      {% set lv = log_values %}
+      <div class="field {{ 'has-error' if errors.kind }}">
+        <div class="pills" role="radiogroup" aria-label="How did you contact the customer?">
+          {% for kind in [ActivityKind.CALL, ActivityKind.WHATSAPP, ActivityKind.SOCIAL_MESSAGE, ActivityKind.VISIT, ActivityKind.NOTE] %}
+            <input type="radio" id="k-{{ kind.value }}" name="kind" value="{{ kind.value }}" {{ 'checked' if (lv.kind or 'call') == kind.value }}>
+            <label for="k-{{ kind.value }}">{{ 'Shop visit' if kind == ActivityKind.VISIT else 'Note only' if kind == ActivityKind.NOTE else kind.label }}</label>
+          {% endfor %}
+        </div>
+        {{ m.error(errors, 'kind') }}
+      </div>
+      <div class="field {{ 'has-error' if errors.outcome }}">
+        <label for="outcome">Result</label>
+        <select id="outcome" name="outcome" data-controls-visibility>{{ m.options(ContactOutcome.choices(), lv.outcome, 'Choose… (leave empty for a note)') }}</select>
+        {{ m.error(errors, 'outcome') }}
+      </div>
+      <div class="field {{ 'has-error' if errors.lost_reason }}" data-show-for="outcome" data-show-when="lost">
+        <label for="lost_reason">Why not buying?</label>
+        <select id="lost_reason" name="lost_reason">{{ m.options(LostReason.choices(), lv.lost_reason, 'Choose…') }}</select>
+        {{ m.error(errors, 'lost_reason') }}
+      </div>
+      <div class="field {{ 'has-error' if errors.note }}">
+        <label for="note">What happened?</label>
+        <textarea id="note" name="note" placeholder="e.g. Sent price Rs 389,000. Wants black, will decide after salary.">{{ lv.note or '' }}</textarea>
+        {{ m.error(errors, 'note') }}
+      </div>
+      <div class="field {{ 'has-error' if errors.next_at }}" data-show-for="outcome" data-show-when="won,lost" data-show-negate>
+        <label for="next_at">Next follow-up (optional)</label>
+        <input id="next_at" name="next_at" type="datetime-local" value="{{ lv.next_at or '' }}">
+        <div class="hint">Leave empty to use the automatic schedule for "{{ inquiry.timeframe.label }}".</div>
+        {{ m.error(errors, 'next_at') }}
+      </div>
+      <button class="btn btn-primary" type="submit">Save follow-up</button>
+    </form>
+    {% elif can_edit and not inquiry.is_open %}
+    <div class="card">
+      <p>This inquiry is closed as <strong>{{ inquiry.status.label }}</strong>{% if inquiry.closed_at %} on {{ inquiry.closed_at|localdt }}{% endif %}.</p>
+      <form method="post" action="/inquiries/{{ inquiry.id }}/reopen" data-confirm="Reopen this inquiry and restart follow-ups?">
+        {{ m.csrf() }}<button class="btn" type="submit">Reopen</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h3>History</h3>
+      <ul class="timeline">
+        {% for a in inquiry.activities %}
+        <li>
+          <div class="when">{{ a.created_at|localdt }} · {{ a.user.full_name if a.user else 'System' }}</div>
+          <div class="what">{{ a.kind.label }}{% if a.outcome %}: {{ a.outcome.label }}{% endif %}</div>
+          {% if a.note %}<div class="note">{{ a.note }}</div>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

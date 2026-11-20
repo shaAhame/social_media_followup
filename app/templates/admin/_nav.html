@@ -1,0 +1,6 @@
+{% set path = request.url.path %}
+<nav class="nav" aria-label="Settings" style="margin-bottom:1rem">
+  <a href="/admin/channels" class="{{ 'active' if path.startswith('/admin/channels') }}">Lead sources</a>
+  <a href="/admin/products" class="{{ 'active' if path.startswith('/admin/products') }}">Products</a>
+  {% if user.role == Role.ADMIN %}<a href="/admin/users" class="{{ 'active' if path.startswith('/admin/users') }}">Staff accounts</a>{% endif %}
+</nav>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Staff accounts{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+  <h1>Staff accounts</h1>
+  <a class="btn btn-primary" href="/admin/users/new">+ Add staff member</a>
+</div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+    <tbody>
+    {% for u in rows %}
+      <tr>
+        <td>{{ u.full_name }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.role.label }}</td>
+        <td>{{ 'Active' if u.is_active else 'Disabled' }}</td>
+        <td>{{ u.last_login_at|localdt or 'Never' }}</td>
+        <td class="right"><a class="btn btn-small" href="/admin/users/{{ u.id }}">Edit</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card" style="margin-top:1rem">
+  <h3>Roles</h3>
+  <ul>
+    <li><strong>Sales</strong>: sees their call list, logs follow-ups on their own and unassigned leads.</li>
+    <li><strong>Coordinator</strong>: logs inquiries from all hotlines and social channels, assigns leads, sees reports.</li>
+    <li><strong>Manager</strong>: everything a coordinator can do, plus CSV export, lead sources and products.</li>
+    <li><strong>Admin</strong>: everything, plus staff accounts.</li>
+  </ul>
+</div>
+{% endblock %}

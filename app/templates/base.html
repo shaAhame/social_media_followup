@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}{% endblock %} · {{ settings().app_name }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/app.css?v=1.0.0">
+  <script src="/static/app.js?v=1.0.0" defer></script>
+</head>
+<body>
+{% if user %}
+{% set path = request.url.path %}
+<header class="topbar">
+  <a class="brand" href="/">{{ settings().company_name }} <span>Leads</span></a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" class="{{ 'active' if path == '/' }}">Dashboard</a>
+    <a href="/followups" class="{{ 'active' if path.startswith('/followups') }}">Follow-ups</a>
+    <a href="/inquiries" class="{{ 'active' if path.startswith('/inquiries') and path != '/inquiries/new' }}">Inquiries</a>
+    {% if user.can_coordinate %}<a href="/reports" class="{{ 'active' if path.startswith('/reports') }}">Reports</a>{% endif %}
+    {% if user.can_manage %}<a href="/admin/channels" class="{{ 'active' if path.startswith('/admin') }}">Settings</a>{% endif %}
+  </nav>
+  <a class="btn btn-primary" href="/inquiries/new">+ New inquiry</a>
+  <div class="usermenu">
+    {{ user.full_name }} ({{ user.role.label }}) ·
+    <a href="/account/password">Password</a> ·
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <button class="linklike" type="submit">Log out</button>
+    </form>
+  </div>
+</header>
+{% endif %}
+<main class="container">
+  {% for category, message in pop_flashes(request) %}
+    <div class="flash flash-{{ category }}" role="status">{{ message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

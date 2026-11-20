@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Follow-ups{% endblock %}
+{% block content %}
+{% set back = '/followups?owner=' ~ owner %}
+<div class="page-head">
+  <div>
+    <h1>Follow-ups</h1>
+    <div class="muted">{{ queues.total_due }} to contact now · work top to bottom</div>
+  </div>
+  <form method="get" class="filters" data-autosubmit style="margin:0">
+    <div class="field">
+      <label for="owner">Showing</label>
+      <select id="owner" name="owner">
+        <option value="me" {{ 'selected' if owner == 'me' }}>My leads</option>
+        {% if user.can_coordinate %}
+        <option value="all" {{ 'selected' if owner == 'all' }}>Everyone</option>
+        <option value="unassigned" {{ 'selected' if owner == 'unassigned' }}>Unassigned</option>
+        {% for p in sales_people %}<option value="{{ p.id }}" {{ 'selected' if owner == p.id|string }}>{{ p.full_name }}</option>{% endfor %}
+        {% endif %}
+      </select>
+    </div>
+  </form>
+</div>
+
+<h2>Overdue <span class="badge tf-today">{{ queues.overdue|length }}</span></h2>
+{% if queues.overdue %}<div class="leads">{% for i in queues.overdue %}{{ m.lead_card(i, back) }}{% endfor %}</div>
+{% else %}<div class="empty">No overdue follow-ups.</div>{% endif %}
+
+<h2>Due later today <span class="badge">{{ queues.due_today|length }}</span></h2>
+{% if queues.due_today %}<div class="leads">{% for i in queues.due_today %}{{ m.lead_card(i, back) }}{% endfor %}</div>
+{% else %}<div class="empty">Nothing else due today.</div>{% endif %}
+
+<h2 id="decide">Needs decision <span class="badge">{{ queues.needs_decision|length }}</span></h2>
+<p class="muted">All automatic follow-ups are used up. Mark each one sold or lost, or set a new follow-up date.</p>
+{% if queues.needs_decision %}<div class="leads">{% for i in queues.needs_decision %}{{ m.lead_card(i, back) }}{% endfor %}</div>
+{% else %}<div class="empty">None.</div>{% endif %}
+
+<h2>Coming up (next 7 days) <span class="badge">{{ queues.upcoming|length }}</span></h2>
+{% if queues.upcoming %}<div class="leads">{% for i in queues.upcoming %}{{ m.lead_card(i, back) }}{% endfor %}</div>
+{% else %}<div class="empty">Nothing scheduled.</div>{% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Lead sources{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="page-head">
+  <div>
+    <h1>Lead sources</h1>
+    <div class="muted">Your WhatsApp hotlines and social channels. Rename them to match your real numbers and branches.</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Type</th><th>Number / handle</th><th>Branch</th><th class="num">Order</th><th>Active</th><th class="num">Inquiries</th><th></th></tr></thead>
+    <tbody>
+    {% for c in rows %}
+      {% set f = 'ch-' ~ c.id %}
+      <tr>
+        <td><input form="{{ f }}" type="text" name="name" value="{{ c.name }}" required aria-label="Name"></td>
+        <td><select form="{{ f }}" name="kind" aria-label="Type">{{ m.options(ChannelKind.choices(), c.kind.value) }}</select></td>
+        <td><input form="{{ f }}" type="text" name="phone_number" value="{{ c.phone_number or '' }}" aria-label="Number"></td>
+        <td><input form="{{ f }}" type="text" name="branch" value="{{ c.branch or '' }}" aria-label="Branch"></td>
+        <td class="num"><input form="{{ f }}" type="number" name="sort_order" value="{{ c.sort_order }}" style="width:5rem" aria-label="Order"></td>
+        <td><input form="{{ f }}" type="checkbox" name="is_active" value="1" {{ 'checked' if c.is_active }} aria-label="Active"></td>
+        <td class="num">{{ counts.get(c.id, 0) }}</td>
+        <td>
+          <form id="{{ f }}" method="post" action="/admin/channels">
+            {{ m.csrf() }}<input type="hidden" name="channel_id" value="{{ c.id }}">
+            <button class="btn btn-small" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<form method="post" action="/admin/channels" class="card" style="margin-top:1rem">
+  {{ m.csrf() }}
+  <h3>Add a source</h3>
+  <div class="field-row">
+    <div class="field"><label for="new-name">Name</label><input id="new-name" type="text" name="name" placeholder="e.g. WhatsApp Hotline 6 - Kandy" required></div>
+    <div class="field"><label for="new-kind">Type</label><select id="new-kind" name="kind">{{ m.options(ChannelKind.choices(), 'whatsapp') }}</select></div>
+    <div class="field"><label for="new-phone">Number / handle</label><input id="new-phone" type="text" name="phone_number"></div>
+    <div class="field"><label for="new-branch">Branch</label><input id="new-branch" type="text" name="branch"></div>
+    <div class="field"><label for="new-order">Order</label><input id="new-order" type="number" name="sort_order" value="100"></div>
+  </div>
+  <button class="btn btn-primary" type="submit">Add source</button>
+</form>
+{% endblock %}

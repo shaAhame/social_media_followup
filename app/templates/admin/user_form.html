@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ 'Edit ' ~ target.full_name if target else 'New staff member' }}{% endblock %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>{{ 'Edit ' ~ target.full_name if target else 'New staff member' }}</h1>
+<form method="post" action="{{ '/admin/users/' ~ target.id if target else '/admin/users/new' }}" class="card" style="max-width:560px">
+  {{ m.csrf() }}
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <div class="field"><label for="full_name">Full name</label><input id="full_name" name="full_name" type="text" value="{{ values.full_name or '' }}" required></div>
+  <div class="field"><label for="email">Email (used to log in)</label><input id="email" name="email" type="email" value="{{ values.email or '' }}" required></div>
+  <div class="field">
+    <label for="role">Role</label>
+    <select id="role" name="role">{{ m.options(Role.choices(), values.role or 'sales') }}</select>
+  </div>
+  {% if target %}
+  <div class="field"><label class="checkbox"><input type="checkbox" name="is_active" value="1" {{ 'checked' if values.is_active }}> Account active (untick when someone leaves)</label></div>
+  <div class="field"><label for="new_password">Set a new password</label><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="8"><div class="hint">Leave empty to keep the current password.</div></div>
+  {% else %}
+  <div class="field"><label for="password">Temporary password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required><div class="hint">At least 8 characters. Ask them to change it after first login.</div></div>
+  {% endif %}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Save</button>
+    <a class="btn" href="/admin/users">Cancel</a>
+  </div>
+</form>
+{% endblock %}

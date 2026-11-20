@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Inquiries{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Inquiries</h1><div class="muted">{{ total }} result{{ 's' if total != 1 }}</div></div>
+  <div class="lead-actions">
+    {% if user.can_manage %}<a class="btn" href="/inquiries/export.csv{{ query_with(request, page=None) }}">Export CSV</a>{% endif %}
+    <a class="btn btn-primary" href="/inquiries/new">+ New inquiry</a>
+  </div>
+</div>
+
+<form method="get" class="filters" data-autosubmit>
+  <div class="field grow">
+    <label for="q">Search</label>
+    <input id="q" type="search" name="q" value="{{ filters.q or '' }}" placeholder="Phone, name or product">
+  </div>
+  <div class="field">
+    <label for="view">Status</label>
+    <select id="view" name="view">
+      <option value="open" {{ 'selected' if filters.view == 'open' }}>All open</option>
+      <option value="all" {{ 'selected' if filters.view == 'all' }}>Everything</option>
+      {% for value, label in InquiryStatus.choices() %}<option value="{{ value }}" {{ 'selected' if filters.view == value }}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="channel_id">Source</label>
+    <select id="channel_id" name="channel_id">
+      <option value="">All sources</option>
+      {% for c in channels %}<option value="{{ c.id }}" {{ 'selected' if filters.channel_id == c.id }}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="assigned">Salesperson</label>
+    <select id="assigned" name="assigned">
+      <option value="" {{ 'selected' if not filters.assigned }}>Anyone</option>
+      <option value="me" {{ 'selected' if filters.assigned == 'me' }}>Me</option>
+      <option value="none" {{ 'selected' if filters.assigned == 'none' }}>Unassigned</option>
+      {% for p in sales_people %}<option value="{{ p.id }}" {{ 'selected' if filters.assigned == p.id|string }}>{{ p.full_name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="timeframe">Time period</label>
+    <select id="timeframe" name="timeframe">
+      <option value="">Any</option>
+      {% for value, label in Timeframe.choices() %}<option value="{{ value }}" {{ 'selected' if filters.timeframe and filters.timeframe.value == value }}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field"><label for="date_from">From</label><input id="date_from" type="date" name="date_from" value="{{ filters.date_from or '' }}"></div>
+  <div class="field"><label for="date_to">To</label><input id="date_to" type="date" name="date_to" value="{{ filters.date_to or '' }}"></div>
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+{% if rows %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Customer</th><th>Product</th><th>Period</th><th>Status</th><th>Source</th><th>Salesperson</th><th>Next follow-up</th><th>Logged</th></tr>
+    </thead>
+    <tbody>
+    {% for i in rows %}
+      <tr class="{{ 'is-overdue' if i.is_open and is_overdue(i.next_followup_at) }}">
+        <td><a href="/inquiries/{{ i.id }}">{{ i.id }}</a></td>
+        <td><a href="/inquiries/{{ i.id }}">{{ i.customer.display_name }}</a><br><small class="nowrap">{{ i.customer.phone_e164|phone }}</small></td>
+        <td>{{ i.product_text }}</td>
+        <td>{{ m.timeframe_badge(i.timeframe) }}</td>
+        <td>{{ m.status_badge(i.status) }}</td>
+        <td>{{ i.channel.name }}</td>
+        <td>{{ i.assigned_to.full_name if i.assigned_to else '—' }}</td>
+        <td class="due-cell nowrap">{% if i.is_open %}{{ i.next_followup_at|smartdt if i.next_followup_at else 'Needs decision' }}{% else %}—{% endif %}</td>
+        <td class="nowrap">{{ i.created_at|localdt('%d %b %Y') }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="pagination">
+  {% if page > 1 %}<a class="btn btn-small" href="{{ query_with(request, page=page-1) }}">← Previous</a>{% endif %}
+  <span class="muted">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}<a class="btn btn-small" href="{{ query_with(request, page=page+1) }}">Next →</a>{% endif %}
+</div>
+{% else %}
+<div class="empty">No inquiries match these filters.</div>
+{% endif %}
+{% endblock %}

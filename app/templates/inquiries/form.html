@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set editing = inquiry is defined and inquiry %}
+{% block title %}{{ 'Edit inquiry #' ~ inquiry.id if editing else 'New inquiry' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ 'Edit inquiry #' ~ inquiry.id if editing else 'Log a new inquiry' }}</h1>
+    {% if not editing %}<div class="muted">Takes 20 seconds: number, product, time period, source. Everything else is optional.</div>{% endif %}
+  </div>
+  {% if editing %}<a class="btn" href="/inquiries/{{ inquiry.id }}">Cancel</a>{% endif %}
+</div>
+
+{% if duplicates %}
+<div class="alert alert-warn">
+  <strong>{{ existing_customer.display_name }} already has {{ duplicates|length }} open inquir{{ 'y' if duplicates|length == 1 else 'ies' }}:</strong>
+  <ul>
+    {% for d in duplicates %}
+    <li><a href="/inquiries/{{ d.id }}">#{{ d.id }} {{ d.product_text }}</a> · {{ d.status.label }} · {{ d.channel.name }} · {{ d.assigned_to.full_name if d.assigned_to else 'Unassigned' }}</li>
+    {% endfor %}
+  </ul>
+  If this is the same request, open it and log a follow-up instead. If it's a different product, press <strong>Save</strong> again to add it as a new inquiry.
+</div>
+{% endif %}
+
+<form method="post" action="{{ '/inquiries/' ~ inquiry.id ~ '/edit' if editing else '/inquiries/new' }}" class="card" novalidate>
+  {{ m.csrf() }}
+  {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
+
+  <div class="field-row">
+    <div class="field {{ 'has-error' if errors.phone }}">
+      <label for="phone">Contact number *</label>
+      <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="off" value="{{ values.phone or '' }}"
+             placeholder="077 123 4567" data-phone-lookup {{ 'autofocus' if not editing }} required>
+      {{ m.error(errors, 'phone') }}
+      <div id="phone-hint" class="lookup-hint" aria-live="polite"></div>
+    </div>
+    <div class="field">
+      <label for="customer_name">Customer name</label>
+      <input id="customer_name" name="customer_name" type="text" value="{{ values.customer_name or '' }}" maxlength="120">
+    </div>
+  </div>
+
+  <div class="field {{ 'has-error' if errors.product_text }}">
+    <label for="product_text">Product of interest *</label>
+    <input id="product_text" name="product_text" type="text" list="product-list" value="{{ values.product_text or '' }}"
+           placeholder="e.g. iPhone 16 Pro 256GB" maxlength="160" required>
+    <datalist id="product-list">{% for p in product_suggestions %}<option value="{{ p }}">{% endfor %}</datalist>
+    {{ m.error(errors, 'product_text') }}
+  </div>
+
+  <div class="field {{ 'has-error' if errors.timeframe }}">
+    <label>When does the customer want to buy? *</label>
+    <div class="pills" role="radiogroup">
+      {% for value, label in Timeframe.choices() %}
+        <input type="radio" id="tf-{{ value }}" name="timeframe" value="{{ value }}" {{ 'checked' if values.timeframe == value }}>
+        <label for="tf-{{ value }}">{{ label }}</label>
+      {% endfor %}
+    </div>
+    {{ m.error(errors, 'timeframe') }}
+  </div>
+
+  <div class="field {{ 'has-error' if errors.channel_id }}">
+    <label>Source (hotline or social channel) *</label>
+    <div class="pills" role="radiogroup">
+      {% for c in channels %}
+        <input type="radio" id="ch-{{ c.id }}" name="channel_id" value="{{ c.id }}" {{ 'checked' if values.channel_id|string == c.id|string }}>
+        <label for="ch-{{ c.id }}">{{ c.name }}</label>
+      {% endfor %}
+    </div>
+    {{ m.error(errors, 'channel_id') }}
+  </div>
+
+  <div class="field-row">
+    <div class="field {{ 'has-error' if errors.assigned_to_id }}">
+      <label for="assigned_to_id">Assign to salesperson</label>
+      <select id="assigned_to_id" name="assigned_to_id" {{ 'disabled' if editing and not user.can_coordinate }}>
+        <option value="">Unassigned</option>
+        {% for p in sales_people %}
+          <option value="{{ p.id }}" {{ 'selected' if values.assigned_to_id|string == p.id|string }}>{{ p.full_name }}</option>
+        {% endfor %}
+      </select>
+      {{ m.error(errors, 'assigned_to_id') }}
+    </div>
+    <div class="field {{ 'has-error' if errors.payment_type }}">
+      <label for="payment_type">Payment</label>
+      <select id="payment_type" name="payment_type">{{ m.options(PaymentType.choices(), values.payment_type, 'Not discussed') }}</select>
+      {{ m.error(errors, 'payment_type') }}
+    </div>
+    <div class="field {{ 'has-error' if errors.budget_lkr }}">
+      <label for="budget_lkr">Budget (LKR)</label>
+      <input id="budget_lkr" name="budget_lkr" type="text" inputmode="numeric" value="{{ values.budget_lkr or '' }}" placeholder="e.g. 350000 or 350k">
+      {{ m.error(errors, 'budget_lkr') }}
+    </div>
+  </div>
+
+  {% if editing %}
+  <div class="field-row">
+    <div class="field {{ 'has-error' if errors.status }}">
+      <label for="status">Status</label>
+      <select id="status" name="status" data-controls-visibility>{{ m.options(InquiryStatus.choices(), values.status) }}</select>
+      {{ m.error(errors, 'status') }}
+    </div>
+    <div class="field {{ 'has-error' if errors.lost_reason }}" data-show-for="status" data-show-when="lost">
+      <label for="lost_reason">Lost reason</label>
+      <select id="lost_reason" name="lost_reason">{{ m.options(LostReason.choices(), values.lost_reason, 'Choose…') }}</select>
+      {{ m.error(errors, 'lost_reason') }}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="field">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" placeholder="Colour, storage, trade-in model, questions asked…">{{ values.notes or '' }}</textarea>
+  </div>
+
+  <div class="field">
+    <label class="checkbox">
+      <input type="checkbox" name="marketing_consent" value="1" {{ 'checked' if values.marketing_consent }}>
+      Customer agreed to receive offers and promotions on WhatsApp
+    </label>
+    <div class="hint">Only tick this if the customer said yes. Needed before sending any promotional broadcast (PDPA).</div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit" name="action" value="save">{{ 'Save changes' if editing else 'Save' }}</button>
+    {% if not editing %}<button class="btn" type="submit" name="action" value="save_new">Save &amp; log another</button>{% endif %}
+  </div>
+</form>
+{% endblock %}
