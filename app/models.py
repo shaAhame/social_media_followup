@@ -16,11 +16,12 @@ Data model (see docs/ARCHITECTURE.md for the diagram):
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     Enum,
     ForeignKey,
     Index,
@@ -73,6 +74,7 @@ class Timeframe(LabelledEnum):
     THIS_WEEK = "this_week"
     THIS_MONTH = "this_month"
     JUST_CHECKING = "just_checking"
+    ON_DATE = "on_date"  # customer named a specific day; see Inquiry.planned_date
 
 
 class InquiryStatus(LabelledEnum):
@@ -146,6 +148,7 @@ _LABEL_PAIRS: list[tuple[enum.Enum, str]] = [
     (Timeframe.THIS_WEEK, "This week"),
     (Timeframe.THIS_MONTH, "This month"),
     (Timeframe.JUST_CHECKING, "Just checking"),
+    (Timeframe.ON_DATE, "Specific date"),
     (InquiryStatus.WON, "Sold"),
     (InquiryStatus.PRICE_SENT, "Price sent"),
     (InquiryStatus.VISIT_PLANNED, "Visit planned"),
@@ -280,6 +283,8 @@ class Inquiry(TimestampMixin, Base):
     product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id", ondelete="SET NULL"))
     product_text: Mapped[str] = mapped_column(String(160))
     timeframe: Mapped[Timeframe] = mapped_column(str_enum(Timeframe))
+    # The day the customer said they will buy (only for Timeframe.ON_DATE).
+    planned_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[InquiryStatus] = mapped_column(
         str_enum(InquiryStatus), default=InquiryStatus.NEW
     )
@@ -310,6 +315,13 @@ class Inquiry(TimestampMixin, Base):
     @property
     def is_open(self) -> bool:
         return self.status.is_open
+
+    @property
+    def timeframe_label(self) -> str:
+        """'This week', or 'Buys Fri 5 Dec' when the customer gave a specific date."""
+        if self.timeframe == Timeframe.ON_DATE and self.planned_date:
+            return "Buys " + self.planned_date.strftime("%a %d %b").replace(" 0", " ")
+        return self.timeframe.label
 
 
 Index("ix_inquiries_created_at", Inquiry.created_at)

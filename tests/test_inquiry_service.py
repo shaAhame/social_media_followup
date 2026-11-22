@@ -243,3 +243,69 @@ def test_update_changes_are_audited(db, settings, channels, make_user):
     kinds = {a.kind for a in inquiry.activities}
     assert {ActivityKind.EDIT, ActivityKind.ASSIGNMENT} <= kinds
     assert inquiry.assigned_to_id == rep.id
+
+
+# ---------------------------------------------------------------- specific purchase date
+def _input(channel, **kw):
+    return svc.InquiryInput(
+        phone="0771234567", channel_id=channel.id, product_text="iPhone 17", **kw
+    )
+
+
+def test_specific_date_is_required_and_validated(db, settings, channels):
+    today = utcnow().astimezone(settings.tz).date()
+    cases = {
+        "": "Pick the date",
+        (today - timedelta(days=1)).isoformat(): "can't be in the past",
+        (today + timedelta(days=400)).isoformat(): "within the next 12 months",
+        "05/12/2026": "valid date",
+    }
+    for value, message in cases.items():
+        with pytest.raises(svc.DomainError) as exc:
+            svc.clean_inquiry_input(
+                db, _input(channels[0], timeframe="on_date", planned_date=value), settings
+            )
+        assert message in exc.value.errors["planned_date"]
+
+
+def test_specific_date_saved_and_scheduled_day_before(db, settings, channels):
+    planned = utcnow().astimezone(settings.tz).date() + timedelta(days=10)
+    clean = svc.clean_inquiry_input(
+        db, _input(channels[0], timeframe="on_date", planned_date=planned.isoformat()), settings
+    )
+    inquiry = svc.create_inquiry(db, clean, None, settings, utcnow())
+    db.commit()
+    assert inquiry.planned_date == planned
+    assert inquiry.next_followup_at.astimezone(settings.tz).date() == planned - timedelta(days=1)
+    assert inquiry.timeframe_label.startswith("Buys ")
+
+
+def test_date_ignored_for_other_time_periods(db, settings, channels):
+    planned = utcnow().astimezone(settings.tz).date() + timedelta(days=10)
+    clean = svc.clean_inquiry_input(
+        db, _input(channels[0], timeframe="this_week", planned_date=planned.isoformat()), settings
+    )
+    assert clean.planned_date is None
+
+
+def test_existing_past_date_can_be_kept_when_editing(db, settings, channels):
+    past = utcnow().astimezone(settings.tz).date() - timedelta(days=3)
+    clean = svc.clean_inquiry_input(
+        db,
+        _input(channels[0], timeframe="on_date", planned_date=past.isoformat()),
+        settings,
+        keep_planned_date=past,
+    )
+    assert clean.planned_date == past
+
+
+def test_changing_the_date_reschedules(db, settings, channels, make_user):
+    coord = make_user(Role.COORDINATOR)
+    inquiry = _create(db, settings, channels[0])
+    planned = utcnow().astimezone(settings.tz).date() + timedelta(days=20)
+    clean = svc.clean_inquiry_input(
+        db, _input(channels[0], timeframe="on_date", planned_date=planned.isoformat()), settings
+    )
+    changes = svc.update_inquiry(db, inquiry, clean, coord, settings, utcnow())
+    assert {"time period", "purchase date"} <= set(changes)
+    assert inquiry.next_followup_at.astimezone(settings.tz).date() == planned - timedelta(days=1)

@@ -63,7 +63,7 @@
         <td><a href="/inquiries/{{ i.id }}">{{ i.id }}</a></td>
         <td><a href="/inquiries/{{ i.id }}">{{ i.customer.display_name }}</a><br><small class="nowrap">{{ i.customer.phone_e164|phone }}</small></td>
         <td>{{ i.product_text }}</td>
-        <td>{{ m.timeframe_badge(i.timeframe) }}</td>
+        <td>{{ m.timeframe_badge(i.timeframe, i) }}</td>
         <td>{{ m.status_badge(i.status) }}</td>
         <td>{{ i.channel.name }}</td>
         <td>{{ i.assigned_to.full_name if i.assigned_to else '—' }}</td>

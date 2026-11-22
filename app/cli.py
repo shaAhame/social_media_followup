@@ -95,13 +95,20 @@ def seed_demo(args: argparse.Namespace) -> int:
         now = utcnow()
         for n in range(args.count):
             created = now - timedelta(hours=rng.randint(0, 24 * 20))
+            timeframe = rng.choice(list(Timeframe))
+            planned = (
+                (now + timedelta(days=rng.randint(1, 30))).astimezone(settings.tz).date()
+                if timeframe == Timeframe.ON_DATE
+                else None
+            )
             clean = svc.clean_inquiry_input(
                 db,
                 svc.InquiryInput(
                     phone=f"07{rng.choice('0125678')}{rng.randint(1000000, 9999999)}",
                     channel_id=rng.choice(channels).id,
                     product_text=rng.choice(DEMO_PRODUCTS),
-                    timeframe=rng.choice(list(Timeframe)),
+                    timeframe=timeframe,
+                    planned_date=planned,
                     customer_name=rng.choice(DEMO_NAMES),
                     assigned_to_id=rng.choice(sales).id if rng.random() > 0.15 else None,
                 ),

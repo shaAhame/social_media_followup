@@ -122,6 +122,7 @@ class InquiryInput:
     notes: str | None = None
     marketing_consent: bool = False
     external_ref: str | None = None
+    planned_date: str | date | None = None
 
 
 @dataclass
@@ -138,6 +139,7 @@ class CleanInquiry:
     notes: str | None
     marketing_consent: bool
     external_ref: str | None = None
+    planned_date: date | None = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -150,7 +152,39 @@ def _to_int(value) -> int | None:
         return None
 
 
-def clean_inquiry_input(db: Session, data: InquiryInput, settings: Settings) -> CleanInquiry:
+MAX_PLANNED_DAYS_AHEAD = 365
+
+
+def parse_planned_date(
+    value, timeframe: Timeframe | None, errors: dict, settings: Settings, keep: date | None = None
+) -> date | None:
+    """Validate the 'specific date' answer. ``keep`` = the date already saved (may be past)."""
+    if timeframe != Timeframe.ON_DATE:
+        return None
+    if value in (None, ""):
+        errors["planned_date"] = "Pick the date the customer plans to buy."
+        return None
+    if isinstance(value, date):
+        planned = value
+    else:
+        try:
+            planned = date.fromisoformat(str(value).strip())
+        except ValueError:
+            errors["planned_date"] = "Enter a valid date."
+            return None
+    today = datetime.now(settings.tz).date()
+    if planned < today and planned != keep:
+        errors["planned_date"] = "The date can't be in the past."
+        return None
+    if planned > today + timedelta(days=MAX_PLANNED_DAYS_AHEAD):
+        errors["planned_date"] = "Pick a date within the next 12 months."
+        return None
+    return planned
+
+
+def clean_inquiry_input(
+    db: Session, data: InquiryInput, settings: Settings, keep_planned_date: date | None = None
+) -> CleanInquiry:
     errors: dict[str, str] = {}
 
     phone_e164 = None
@@ -173,6 +207,9 @@ def clean_inquiry_input(db: Session, data: InquiryInput, settings: Settings) -> 
         errors["product_text"] = "What product is the customer interested in?"
 
     timeframe = parse_enum(Timeframe, data.timeframe, "timeframe", errors, required=True)
+    planned_date = parse_planned_date(
+        data.planned_date, timeframe, errors, settings, keep=keep_planned_date
+    )
     payment_type = parse_enum(
         PaymentType, data.payment_type, "payment_type", errors, required=False
     )
@@ -202,6 +239,7 @@ def clean_inquiry_input(db: Session, data: InquiryInput, settings: Settings) -> 
         notes=clean_multiline(data.notes),
         marketing_consent=bool(data.marketing_consent),
         external_ref=clean_text(data.external_ref, 120),
+        planned_date=planned_date,
     )
 
 
@@ -245,6 +283,18 @@ def open_inquiries_for_customer(db: Session, customer_id: int) -> list[Inquiry]:
 
 
 # ---------------------------------------------------------------- commands
+def schedule_next(inquiry: Inquiry, attempts_done: int, settings: Settings, now: datetime):
+    """Next automatic follow-up for this inquiry's time period (None = needs decision)."""
+    return next_followup_at(
+        inquiry.timeframe,
+        attempts_done,
+        now,
+        business_hours(settings),
+        settings.followup_max_attempts,
+        planned_date=inquiry.planned_date,
+    )
+
+
 def _add_activity(
     db: Session,
     inquiry: Inquiry,
@@ -287,6 +337,7 @@ def create_inquiry(
         product=clean.product,
         product_text=clean.product_text,
         timeframe=clean.timeframe,
+        planned_date=clean.planned_date,
         status=InquiryStatus.NEW,
         payment_type=clean.payment_type,
         budget_lkr=clean.budget_lkr,
@@ -295,12 +346,10 @@ def create_inquiry(
         notes=clean.notes,
         external_ref=clean.external_ref,
         followup_count=0,
-        next_followup_at=next_followup_at(
-            clean.timeframe, 0, now, business_hours(settings), settings.followup_max_attempts
-        ),
         created_at=now,
         updated_at=now,
     )
+    inquiry.next_followup_at = schedule_next(inquiry, 0, settings, now)
     db.add(inquiry)
     source = f"Logged from {clean.channel.name}"
     if clean.assignee:
@@ -380,12 +429,8 @@ def log_contact(
 
     if new_status.is_open:
         inquiry.lost_reason = None
-        inquiry.next_followup_at = next_at or next_followup_at(
-            inquiry.timeframe,
-            inquiry.followup_count,
-            now,
-            business_hours(settings),
-            settings.followup_max_attempts,
+        inquiry.next_followup_at = next_at or schedule_next(
+            inquiry, inquiry.followup_count, settings, now
         )
     else:
         inquiry.closed_at = now
@@ -449,17 +494,15 @@ def update_inquiry(
             changes.append(label)
     inquiry.product = clean.product
 
-    if clean.timeframe != inquiry.timeframe:
+    if clean.timeframe != inquiry.timeframe or clean.planned_date != inquiry.planned_date:
+        if clean.timeframe != inquiry.timeframe:
+            changes.append("time period")
+        if clean.planned_date != inquiry.planned_date and clean.planned_date:
+            changes.append("purchase date")
         inquiry.timeframe = clean.timeframe
-        changes.append("time period")
+        inquiry.planned_date = clean.planned_date
         if inquiry.is_open:
-            inquiry.next_followup_at = next_followup_at(
-                clean.timeframe,
-                inquiry.followup_count,
-                now,
-                business_hours(settings),
-                settings.followup_max_attempts,
-            )
+            inquiry.next_followup_at = schedule_next(inquiry, inquiry.followup_count, settings, now)
 
     if status is not None and status != inquiry.status:
         if status == InquiryStatus.LOST and lost_reason is None:
@@ -501,9 +544,7 @@ def reopen(db: Session, inquiry: Inquiry, actor: User, settings: Settings, now: 
     inquiry.closed_at = None
     inquiry.lost_reason = None
     inquiry.followup_count = 0  # restart the follow-up cadence
-    inquiry.next_followup_at = next_followup_at(
-        inquiry.timeframe, 0, now, business_hours(settings), settings.followup_max_attempts
-    )
+    inquiry.next_followup_at = schedule_next(inquiry, 0, settings, now)
     inquiry.updated_at = now
     _add_activity(
         db,

@@ -6,8 +6,8 @@
 <span class="badge status-{{ status.value }}">{{ status.label }}</span>
 {%- endmacro %}
 
-{% macro timeframe_badge(timeframe) -%}
-<span class="badge tf-{{ timeframe.value }}">{{ timeframe.label }}</span>
+{% macro timeframe_badge(timeframe, inquiry=None) -%}
+<span class="badge tf-{{ timeframe.value }}">{{ inquiry.timeframe_label if inquiry else timeframe.label }}</span>
 {%- endmacro %}
 
 {% macro error(errors, name) -%}
@@ -29,7 +29,7 @@
     <span class="muted nowrap">{{ i.customer.phone_e164|phone }}</span>
     <div class="lead-product">{{ i.product_text }}</div>
     <div class="lead-meta">
-      {{ timeframe_badge(i.timeframe) }} {{ status_badge(i.status) }}
+      {{ timeframe_badge(i.timeframe, i) }} {{ status_badge(i.status) }}
       <span class="muted">{{ i.channel.name }}</span>
       <span class="muted">· {{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</span>
       {% if i.followup_count %}<span class="muted">· {{ i.followup_count }} follow-up{{ 's' if i.followup_count != 1 }}</span>{% endif %}

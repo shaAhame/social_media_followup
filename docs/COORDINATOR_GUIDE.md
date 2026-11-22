@@ -13,7 +13,8 @@ you reply to it.** If it's not in the system, nobody will follow up.
    - If they already have an open inquiry for the same thing, open it and log a follow-up
      instead of creating a new one.
 3. **Product of interest**: start typing; pick from the suggestions when possible.
-4. **When do they want to buy?** Today / This week / This month / Just checking.
+4. **When do they want to buy?** Today / This week / This month / Just checking, or
+   **📅 Pick a date** if they name a day ("after salary on the 25th"). Then choose the date.
    Ask: *"When are you planning to buy?"*
 5. **Source**: which hotline or social channel the message came from. The system remembers
    your last choice.
@@ -54,6 +55,7 @@ When you log a result on an unassigned lead, it becomes yours.
 | This week | next morning 10:00 | +2, +4, +7 days |
 | This month | in 3 days | +7, +7, +14 days |
 | Just checking | in 7 days | +14, +30 days |
+| A specific date | the day before that date, 10:00 | then the date itself, +2, +4 days |
 
 ## Daily routine
 

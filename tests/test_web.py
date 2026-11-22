@@ -400,3 +400,28 @@ def test_404_page(client, make_user):
     response = client.get("/inquiries/999999")
     assert response.status_code == 404
     assert "Inquiry not found" in response.text
+
+
+def test_log_inquiry_with_specific_date(client, make_user, channels, db, settings):
+    from datetime import timedelta
+
+    from app.db import utcnow
+
+    login(client, make_user(Role.COORDINATOR))
+    form = client.get("/inquiries/new").text
+    assert "Pick a date" in form and 'name="planned_date"' in form
+    missing = _new_inquiry(client, channels[0].id, timeframe="on_date")
+    assert missing.status_code == 422
+    assert "Pick the date the customer plans to buy" in missing.text
+
+    planned = utcnow().astimezone(settings.tz).date() + timedelta(days=12)
+    response = _new_inquiry(
+        client, channels[0].id, timeframe="on_date", planned_date=planned.isoformat()
+    )
+    assert response.status_code == 303
+    inquiry = db.scalar(select(Inquiry))
+    assert inquiry.planned_date == planned
+    page = client.get(response.headers["location"]).text
+    assert inquiry.timeframe_label in page
+    edit = client.get(f"/inquiries/{inquiry.id}/edit").text
+    assert f'value="{planned.isoformat()}"' in edit

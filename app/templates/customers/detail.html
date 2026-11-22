@@ -25,7 +25,7 @@
         {% for i in customer.inquiries %}
           <tr>
             <td><a href="/inquiries/{{ i.id }}">{{ i.id }}</a></td>
-            <td>{{ i.product_text }}<br>{{ m.timeframe_badge(i.timeframe) }}</td>
+            <td>{{ i.product_text }}<br>{{ m.timeframe_badge(i.timeframe, i) }}</td>
             <td>{{ m.status_badge(i.status) }}</td>
             <td>{{ i.channel.name }}<br><small>{{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</small></td>
             <td class="nowrap">{{ i.created_at|localdt('%d %b %Y') }}</td>

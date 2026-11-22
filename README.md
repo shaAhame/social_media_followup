@@ -10,7 +10,7 @@ Built for iDealz Lanka (Pvt) Ltd: a coordinator logs each inquiry in about 20 se
   Instagram and TikTok (`077 123 4567`, `+94771234567` and `94771234567` are the same person),
   and warns before a duplicate is created.
 - **Schedules follow-ups automatically** from the customer's buying time period
-  (Today / This week / This month / Just checking).
+  (Today / This week / This month / Just checking, or a specific date).
 - Gives each salesperson a **call list**: overdue, due today, needs decision, upcoming, with
   one-tap **WhatsApp** (pre-filled message) and **Call** buttons.
 - Keeps a **full history** of every call, message, status change and reassignment.
@@ -33,6 +33,7 @@ Technical design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | This week | next morning | +2 days, +4 days, +7 days | 4 |
 | This month | +3 days | +7 days, +7 days, +14 days | 4 |
 | Just checking | +7 days | +14 days, +30 days | 3 |
+| Specific date (Pick a date) | 10:00 the day before that date (or within 2 hours if the date is today or tomorrow) | next day, +2 days, +4 days | 4 after the date |
 
 Day-based follow-ups land at 10:00 so each salesperson gets one clean list every morning.
 After the last automatic follow-up, the inquiry moves to **Needs decision**: mark it sold or
@@ -137,7 +138,8 @@ curl -X POST https://leads.example.com/api/v1/inquiries \
 ```
 
 - `source` must match a lead source name (case-insensitive).
-- `timeframe` is one of `today`, `this_week` (default), `this_month` or `just_checking`.
+- `timeframe` is one of `today`, `this_week` (default), `this_month`, `just_checking` or
+  `on_date` (then also send `"planned_date": "YYYY-MM-DD"`).
 - If you send `external_ref` (for example a Meta message id), repeating the same request
   returns the original inquiry (`"created": false`) instead of creating a duplicate.
 
@@ -155,5 +157,5 @@ app/
   templates/ static/ server-rendered UI (no build step)
   cli.py             create-user, seed-demo
 alembic/             database migrations
-tests/               84 tests (services, web flows, API, reports, migrations)
+tests/               97 tests (services, web flows, API, reports, migrations)
 ```

@@ -123,6 +123,7 @@ textarea { min-height: 80px; resize: vertical; }
 .tf-today { background: var(--danger-soft); color: var(--danger); }
 .tf-this_week { background: var(--warn-soft); color: var(--warn); }
 .tf-this_month { background: #eef0f3; color: var(--ink-2); }
+.tf-on_date { background: var(--brand-soft); color: var(--brand); }
 .tf-just_checking { background: #f6f6f6; color: var(--muted); }
 
 /* ---------- stat tiles ---------- */

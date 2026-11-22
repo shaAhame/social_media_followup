@@ -10,6 +10,7 @@ inquiry instead of creating a duplicate.
 from __future__ import annotations
 
 import secrets
+from datetime import date
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -46,6 +47,9 @@ class InquiryIn(BaseModel):
     )
     product: str = Field(..., max_length=160, examples=["iPhone 16 Pro 256GB"])
     timeframe: Timeframe = Timeframe.THIS_WEEK
+    planned_date: date | None = Field(
+        None, description="Required when timeframe is 'on_date' (YYYY-MM-DD)"
+    )
     customer_name: str | None = Field(None, max_length=120)
     payment_type: str | None = None
     budget_lkr: int | None = Field(None, ge=0)
@@ -87,6 +91,7 @@ def api_create_inquiry(body: InquiryIn, db: Session = Depends(get_db)):
                 channel_id=channel.id,
                 product_text=body.product,
                 timeframe=body.timeframe,
+                planned_date=body.planned_date,
                 customer_name=body.customer_name,
                 payment_type=body.payment_type,
                 budget_lkr=body.budget_lkr,

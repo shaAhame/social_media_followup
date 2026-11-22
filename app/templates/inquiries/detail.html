@@ -21,7 +21,7 @@
     <div class="card">
       <dl class="facts">
         <div><dt>Product</dt><dd>{{ inquiry.product_text }}</dd></div>
-        <div><dt>Time period</dt><dd>{{ m.timeframe_badge(inquiry.timeframe) }}</dd></div>
+        <div><dt>Time period</dt><dd>{{ m.timeframe_badge(inquiry.timeframe, inquiry) }}</dd></div>
         <div><dt>Source</dt><dd>{{ inquiry.channel.name }}</dd></div>
         <div><dt>Payment</dt><dd>{{ inquiry.payment_type.label if inquiry.payment_type else '—' }}</dd></div>
         <div><dt>Budget</dt><dd>{{ inquiry.budget_lkr|lkr or '—' }}</dd></div>
@@ -85,7 +85,7 @@
       <div class="field {{ 'has-error' if errors.next_at }}" data-show-for="outcome" data-show-when="won,lost" data-show-negate>
         <label for="next_at">Next follow-up (optional)</label>
         <input id="next_at" name="next_at" type="datetime-local" value="{{ lv.next_at or '' }}">
-        <div class="hint">Leave empty to use the automatic schedule for "{{ inquiry.timeframe.label }}".</div>
+        <div class="hint">Leave empty to use the automatic schedule for "{{ inquiry.timeframe_label }}".</div>
         {{ m.error(errors, 'next_at') }}
       </div>
       <button class="btn btn-primary" type="submit">Save follow-up</button>

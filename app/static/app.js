@@ -56,21 +56,25 @@
     if (phone.value) lookup();
   }
 
-  // Show fields only when they apply (lost reason, next follow-up date).
-  var syncDependents = function (select) {
-    var value = select.value;
-    document.querySelectorAll("[data-show-when]").forEach(function (el) {
-      if (el.getAttribute("data-show-for") !== select.id) return;
+  // Show fields only when they apply (lost reason, next follow-up date, purchase date).
+  // An element with data-show-for="<field name>" data-show-when="a,b" is shown only when
+  // that field (a <select> or a radio group) has one of those values.
+  var currentValue = function (name) {
+    var checked = document.querySelector('input[type="radio"][name="' + name + '"]:checked');
+    if (checked) return checked.value;
+    var field = document.querySelector('[name="' + name + '"]');
+    return field && field.type !== "radio" ? field.value : "";
+  };
+  var syncDependents = function () {
+    document.querySelectorAll("[data-show-for]").forEach(function (el) {
       var wanted = el.getAttribute("data-show-when").split(",");
+      var match = wanted.indexOf(currentValue(el.getAttribute("data-show-for"))) !== -1;
       var negate = el.hasAttribute("data-show-negate");
-      var match = wanted.indexOf(value) !== -1;
       el.classList.toggle("is-hidden", negate ? match : !match);
     });
   };
-  document.querySelectorAll("[data-controls-visibility]").forEach(function (select) {
-    select.addEventListener("change", function () { syncDependents(select); });
-    syncDependents(select);
-  });
+  document.addEventListener("change", syncDependents);
+  syncDependents();
 
   // Confirmation for destructive actions.
   document.querySelectorAll("form[data-confirm]").forEach(function (form) {

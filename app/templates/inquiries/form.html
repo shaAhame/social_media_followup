@@ -54,10 +54,18 @@
     <div class="pills" role="radiogroup">
       {% for value, label in Timeframe.choices() %}
         <input type="radio" id="tf-{{ value }}" name="timeframe" value="{{ value }}" {{ 'checked' if values.timeframe == value }}>
-        <label for="tf-{{ value }}">{{ label }}</label>
+        <label for="tf-{{ value }}">{{ '📅 Pick a date' if value == 'on_date' else label }}</label>
       {% endfor %}
     </div>
     {{ m.error(errors, 'timeframe') }}
+  </div>
+
+  <div class="field {{ 'has-error' if errors.planned_date }}" data-show-for="timeframe" data-show-when="on_date" style="max-width:260px">
+    <label for="planned_date">Date the customer plans to buy</label>
+    <input id="planned_date" name="planned_date" type="date" value="{{ values.planned_date or '' }}"
+           min="{{ today() if not editing else '' }}">
+    <div class="hint">We'll remind the salesperson the day before.</div>
+    {{ m.error(errors, 'planned_date') }}
   </div>
 
   <div class="field {{ 'has-error' if errors.channel_id }}">

@@ -49,3 +49,16 @@ def test_api_validation(client):
     bad_phone = client.post("/api/v1/inquiries", json={**BODY, "phone": "123"}, headers=HEADERS)
     assert bad_phone.status_code == 422
     assert "phone" in bad_phone.json()["detail"]
+
+
+def test_api_specific_date(client, db):
+    from datetime import date, timedelta
+
+    planned = date.today() + timedelta(days=15)
+    body = {**BODY, "timeframe": "on_date", "planned_date": planned.isoformat()}
+    data = client.post("/api/v1/inquiries", json=body, headers=HEADERS).json()
+    assert db.get(Inquiry, data["id"]).planned_date == planned
+    missing = client.post(
+        "/api/v1/inquiries", json={**BODY, "timeframe": "on_date"}, headers=HEADERS
+    )
+    assert missing.status_code == 422
