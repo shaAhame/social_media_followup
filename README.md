@@ -33,7 +33,7 @@ Technical design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | This week | next morning | +2 days, +4 days, +7 days | 4 |
 | This month | +3 days | +7 days, +7 days, +14 days | 4 |
 | Just checking | +7 days | +14 days, +30 days | 3 |
-| Specific date (Pick a date) | 10:00 the day before that date (or within 2 hours if the date is today or tomorrow) | next day, +2 days, +4 days | 4 after the date |
+| Specific date (Pick a date) | 10:00 the day before that date (or within 2 hours if the date is today or tomorrow) | next day, +2 days, +4 days | 4 (the reminder counts as one) |
 
 Day-based follow-ups land at 10:00 so each salesperson gets one clean list every morning.
 After the last automatic follow-up, the inquiry moves to **Needs decision**: mark it sold or
