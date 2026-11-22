@@ -57,15 +57,27 @@ When you log a result on an unassigned lead, it becomes yours.
 | Just checking | in 7 days | +14, +30 days |
 | A specific date | the day before that date, 10:00 | then the date itself, +2, +4 days |
 
+## Put the app on your phone and get notifications
+
+1. Open the app link on your phone and log in.
+2. **iPhone:** Safari → **Share** → **Add to Home Screen** → **Add**, then open **Leads** from
+   the new icon. **Android:** Chrome → **⋮** → **Add to Home screen** (or **Install app**).
+3. Tap **🔔 Notifications** at the top → **Turn on notifications on this phone** → **Allow**.
+4. Tap **Send a test**. You should get a notification within a few seconds.
+
+Every morning at 9:45 you'll get your call list (only on days you have follow-ups).
+Tap it to open your list. Managers also get a report at 19:30.
+
 ## Daily routine
 
 | Time | Who | What |
 |---|---|---|
+| 9:45 | Sales | 🔔 Call-list notification arrives: tap it |
 | 10:00 | Sales | Clear **Overdue** and **Due today** |
 | 13:00 | Coordinator | Check every hotline and social inbox; anything not logged gets logged |
 | 13:00 | Coordinator | Assign all **unassigned** leads (Dashboard tile) |
 | 18:00 | Coordinator | Second inbox sweep; return missed calls |
-| 18:30 | Manager | Dashboard: overdue count per person should be close to zero |
+| 19:30 | Manager | 🔔 Daily report notification: check overdue per person |
 | Weekly | Manager | **Reports**: which sources sell, lost reasons, response time |
 
 ## Good habits

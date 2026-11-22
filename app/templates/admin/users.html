@@ -8,7 +8,7 @@
 </div>
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Notifications</th><th>Last login</th><th></th></tr></thead>
     <tbody>
     {% for u in rows %}
       <tr>
@@ -16,6 +16,7 @@
         <td>{{ u.email }}</td>
         <td>{{ u.role.label }}</td>
         <td>{{ 'Active' if u.is_active else 'Disabled' }}</td>
+        <td>{{ ('🔔 ' ~ devices[u.id] ~ ' device' ~ ('s' if devices[u.id] != 1 else '')) if devices.get(u.id) else '—' }}</td>
         <td>{{ u.last_login_at|localdt or 'Never' }}</td>
         <td class="right"><a class="btn btn-small" href="/admin/users/{{ u.id }}">Edit</a></td>
       </tr>

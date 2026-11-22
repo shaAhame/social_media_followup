@@ -76,6 +76,84 @@
   document.addEventListener("change", syncDependents);
   syncDependents();
 
+  // Home-screen app: register the service worker on every page.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  }
+
+  // Phone notifications (Notifications page).
+  var pushCard = document.getElementById("push-card");
+  if (pushCard) {
+    var statusEl = document.getElementById("push-status");
+    var enableBtn = document.getElementById("push-enable");
+    var iosBox = document.getElementById("ios-install");
+    var ua = navigator.userAgent;
+    var isIOS = /iPhone|iPad|iPod/.test(ua);
+    var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    var supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    var show = function (el, on) { el.classList.toggle("is-hidden", !on); };
+    var say = function (text) { statusEl.textContent = text; };
+    var deviceLabel = function () {
+      var os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android phone"
+        : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "Device";
+      var browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox"
+        : /Safari\//.test(ua) ? "Safari" : "browser";
+      return os + (standalone ? " (home-screen app)" : " · " + browser);
+    };
+    var keyBytes = function (base64) {
+      var padded = (base64 + "===".slice((base64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+      var raw = atob(padded), out = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+      return out;
+    };
+    var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
+
+    var refresh = function () {
+      if (isIOS && !standalone) { show(iosBox, true); say("Add the app to your Home Screen to get notifications on iPhone."); return; }
+      if (!supported) { say("This browser can't receive notifications. Use Chrome on Android, or the home-screen app on iPhone."); return; }
+      if (Notification.permission === "denied") {
+        say("Notifications are blocked for this site. Allow them in your phone's settings for this app/browser, then reload.");
+        return;
+      }
+      navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
+        .then(function (sub) {
+          if (sub) { say("✅ Notifications are on for this device."); show(enableBtn, true); enableBtn.textContent = "Re-connect this device"; }
+          else { say("Notifications are off on this device."); show(enableBtn, true); }
+        });
+    };
+
+    enableBtn.addEventListener("click", function () {
+      enableBtn.disabled = true;
+      say("Asking for permission…");
+      Notification.requestPermission().then(function (permission) {
+        if (permission !== "granted") throw new Error("Permission was not given.");
+        return navigator.serviceWorker.ready;
+      }).then(function (reg) {
+        return reg.pushManager.getSubscription().then(function (existing) {
+          return existing || reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: keyBytes(pushCard.getAttribute("data-public-key")),
+          });
+        });
+      }).then(function (sub) {
+        var json = sub.toJSON();
+        return fetch("/account/notifications/subscribe", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": csrf },
+          body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, device_label: deviceLabel() }),
+        });
+      }).then(function (res) {
+        if (!res.ok) throw new Error("The server didn't accept the device (" + res.status + ").");
+        window.location.reload();
+      }).catch(function (err) {
+        say("Couldn't turn on notifications: " + err.message);
+        enableBtn.disabled = false;
+      });
+    });
+    refresh();
+  }
+
   // Confirmation for destructive actions.
   document.querySelectorAll("form[data-confirm]").forEach(function (form) {
     form.addEventListener("submit", function (e) {

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,9 +20,19 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import __version__
 from app.config import get_settings
 from app.db import SessionLocal, get_engine
-from app.routers import admin, api, auth, dashboard, followups, inquiries, reports
+from app.routers import (
+    admin,
+    api,
+    auth,
+    dashboard,
+    followups,
+    inquiries,
+    notifications,
+    reports,
+)
 from app.security import LoginRequired
 from app.services.bootstrap import run_bootstrap
+from app.services.digests import scheduler_loop
 from app.templating import render
 
 log = logging.getLogger("app")
@@ -49,7 +61,14 @@ async def lifespan(app: FastAPI):
         log.error("Database not ready (%s). Did you run `alembic upgrade head`?", exc.orig)
     finally:
         db.close()
+    scheduler = None
+    if settings.run_scheduler and settings.notifications_enabled:
+        scheduler = asyncio.create_task(scheduler_loop())
     yield
+    if scheduler is not None:
+        scheduler.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await scheduler
 
 
 def create_app() -> FastAPI:
@@ -90,7 +109,7 @@ def create_app() -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
-    for module in (auth, dashboard, inquiries, followups, reports, admin, api):
+    for module in (auth, dashboard, inquiries, followups, reports, admin, api, notifications):
         app.include_router(module.router)
 
     @app.exception_handler(LoginRequired)

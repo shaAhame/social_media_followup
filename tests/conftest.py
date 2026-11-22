@@ -17,6 +17,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-that-is-long-enough-123456"
 os.environ["API_KEY"] = "test-api-key"
 os.environ["ENVIRONMENT"] = "development"
 os.environ["SEED_DEFAULT_CHANNELS"] = "true"
+os.environ["RUN_SCHEDULER"] = "false"
 for key in ("INITIAL_ADMIN_EMAIL", "INITIAL_ADMIN_PASSWORD"):
     os.environ.pop(key, None)
 

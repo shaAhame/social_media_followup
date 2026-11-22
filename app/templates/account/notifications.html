@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>🔔 Phone notifications</h1>
+    <div class="muted">Get your call list every morning without opening the app.</div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <section>
+    <div class="card" id="push-card" data-public-key="{{ public_key }}">
+      <h3>This phone</h3>
+      <p id="push-status" class="muted">Checking…</p>
+
+      <div id="ios-install" class="alert alert-warn is-hidden">
+        <strong>iPhone: add the app to your Home Screen first.</strong>
+        In Safari tap <strong>Share</strong> (the square with an arrow) → <strong>Add to Home Screen</strong> → <strong>Add</strong>.
+        Then open <strong>Leads</strong> from the new icon, come back to this page and tap the button below.
+        (Needs iOS 16.4 or newer.)
+      </div>
+
+      <button id="push-enable" class="btn btn-primary is-hidden" type="button">Turn on notifications on this phone</button>
+      {% if not enabled %}<p class="field-error">Notifications are switched off on the server (NOTIFICATIONS_ENABLED=false).</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h3>What you'll get</h3>
+      <form method="post" action="/account/notifications/settings">
+        {{ m.csrf() }}
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" name="notify_morning" value="1" {{ 'checked' if user.notify_morning }}>
+            <span><strong>{{ morning_time }} call list</strong>: how many follow-ups are overdue and due today, and who to contact first{% if user.can_coordinate %}, plus unassigned leads{% endif %}. Not sent on days with nothing to do.</span>
+          </label>
+        </div>
+        {% if user.can_coordinate %}
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" name="notify_evening" value="1" {{ 'checked' if user.notify_evening }}>
+            <span><strong>{{ evening_time }} daily report</strong>: today's inquiries, sales and lost sales, overdue follow-ups per salesperson and unassigned leads. Tap it to open today's full report.</span>
+          </label>
+        </div>
+        {% endif %}
+        <button class="btn" type="submit">Save</button>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h3>Your devices</h3>
+      {% if devices %}
+      <ul class="timeline">
+        {% for d in devices %}
+        <li>
+          <div class="what">{{ d.device_label or 'Device' }}</div>
+          <div class="when">Added {{ d.created_at|localdt }}{% if d.last_success_at %} · last notification {{ d.last_success_at|reltime }}{% endif %}</div>
+          <form method="post" action="/account/notifications/{{ d.id }}/remove" class="inline" data-confirm="Stop notifications on this device?">
+            {{ m.csrf() }}<button class="linklike btn-danger" type="submit">Remove</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="form-actions">
+        <form method="post" action="/account/notifications/send" class="inline">{{ m.csrf() }}<input type="hidden" name="kind" value="test"><button class="btn" type="submit">Send a test</button></form>
+        <form method="post" action="/account/notifications/send" class="inline">{{ m.csrf() }}<input type="hidden" name="kind" value="morning"><button class="btn" type="submit">Send my call list now</button></form>
+        {% if user.can_coordinate %}
+        <form method="post" action="/account/notifications/send" class="inline">{{ m.csrf() }}<input type="hidden" name="kind" value="evening"><button class="btn" type="submit">Send today's report now</button></form>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="muted">No devices yet. Open this page on your phone and turn notifications on.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Put the app on your home screen</h3>
+      <p><strong>Android (Chrome):</strong> tap <strong>⋮</strong> (top right) → <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
+      <p><strong>iPhone (Safari):</strong> tap <strong>Share</strong> → <strong>Add to Home Screen</strong> → <strong>Add</strong>.</p>
+      <p class="muted">It opens full-screen like a normal app, with no browser bar. You may need to log in again after {{ settings().session_max_age_hours }} hours.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

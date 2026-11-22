@@ -16,6 +16,10 @@ Built for iDealz Lanka (Pvt) Ltd: a coordinator logs each inquiry in about 20 se
 - Keeps a **full history** of every call, message, status change and reassignment.
 - **Reports** leads, sales and conversion by source, salesperson, product and time period,
   plus lost-sale reasons and response speed. Managers can export to CSV.
+- **Phone notifications**: each salesperson gets their call list at 9:45 every morning, and
+  managers get a daily report at 19:30 (today's inquiries, sales, lost reasons, overdue per
+  person). Tapping a notification opens the right page.
+- **Installs like an app** on Android and iPhone (Add to Home Screen): icon, full screen.
 - Records **marketing consent** per customer (Sri Lanka PDPA).
 - Has an **API** so website forms, chatbots or a future WhatsApp Cloud API bridge can add
   leads automatically. Retries are safe because duplicate submissions are detected.
@@ -125,8 +129,25 @@ All settings are environment variables; see [.env.example](.env.example).
 | `FOLLOWUP_MAX_ATTEMPTS` | `4` | Automatic follow-ups before "Needs decision" |
 | `WHATSAPP_FOLLOWUP_TEMPLATE` | see file | Pre-filled WhatsApp text: `{name}` `{agent}` `{company}` `{product}` |
 | `API_KEY` | empty (API off) | Enables `POST /api/v1/inquiries` |
+| `NOTIFICATIONS_ENABLED` | `true` | Phone notifications on/off for everyone |
+| `MORNING_DIGEST_TIME` / `EVENING_REPORT_TIME` | `09:45` / `19:30` | Local times for the daily call list and manager report |
+| `VAPID_SUBJECT` | `mailto:leads@idealz.lk` | Contact address sent to push services (any address you own) |
+| `RUN_SCHEDULER` | `true` | Runs the daily jobs inside the web process (each job runs once per day, even with several workers) |
 | `INITIAL_ADMIN_*` | — | Creates the first admin when there are no users |
 | `SEED_DEFAULT_CHANNELS` | `true` | Creates the default lead sources on the first run |
+
+## Phone notifications
+
+1. Each person opens the app **on their phone**, taps **🔔 Notifications** (top right) and
+   **Turn on notifications on this phone**.
+   - **iPhone:** first add the app to the Home Screen (Safari → Share → Add to Home Screen),
+     open it from the icon, then turn notifications on. Needs iOS 16.4 or newer.
+   - **Android:** works in Chrome directly; adding to the home screen is optional.
+2. Use **Send a test** to check. Managers can see who has notifications on under
+   **Settings → Staff accounts**.
+
+No setup is needed on Railway: the app creates its own signing keys on first use and stores
+them in the database. The morning call list is skipped for people with nothing due.
 
 ## Lead intake API
 
@@ -157,5 +178,5 @@ app/
   templates/ static/ server-rendered UI (no build step)
   cli.py             create-user, seed-demo
 alembic/             database migrations
-tests/               97 tests (services, web flows, API, reports, migrations)
+tests/               109 tests (services, web flows, API, reports, migrations)
 ```

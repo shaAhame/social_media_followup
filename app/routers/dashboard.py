@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_settings
 from app.db import get_db, utcnow
-from app.models import OPEN_STATUSES, Inquiry, InquiryStatus, User
+from app.models import OPEN_STATUSES, Inquiry, InquiryStatus, PushSubscription, User
 from app.security import get_current_user
 from app.services.followup import local_day_bounds
 from app.services.inquiries import followup_queues
@@ -72,8 +72,21 @@ def dashboard(
             )
         )
     call_list = (queues.overdue + queues.due_today)[:15]
+    has_device = bool(
+        db.scalar(
+            select(func.count())
+            .select_from(PushSubscription)
+            .where(PushSubscription.user_id == user.id)
+        )
+    )
     return render(
         request,
         "dashboard.html",
-        {"stats": stats, "call_list": call_list, "recent": recent, "scoped": owner_id is not None},
+        {
+            "stats": stats,
+            "call_list": call_list,
+            "recent": recent,
+            "scoped": owner_id is not None,
+            "has_device": has_device,
+        },
     )

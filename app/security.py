@@ -118,6 +118,14 @@ def verify_csrf(request: Request, csrf_token_field: str = Form("", alias="csrf_t
         )
 
 
+def verify_csrf_header(request: Request) -> None:
+    """CSRF check for JSON requests made by the app's own JavaScript."""
+    expected = request.session.get(SESSION_CSRF_KEY)
+    sent = request.headers.get("x-csrf-token", "")
+    if not expected or not secrets.compare_digest(expected, sent):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid or missing CSRF token.")
+
+
 # ---------------------------------------------------------------- login throttling
 class LoginThrottle:
     """Simple in-memory limiter: N failed attempts per key per window.

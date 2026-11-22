@@ -38,6 +38,14 @@ class Settings(BaseSettings):
         "you asked about. Can I help you with the price, stock or installment options?"
     )
 
+    # Phone notifications (web push). Times are local (TIMEZONE), HH:MM.
+    notifications_enabled: bool = True
+    run_scheduler: bool = True
+    morning_digest_time: str = "09:45"
+    evening_report_time: str = "19:30"
+    # Contact for push services; any mailto: or https: URL you own.
+    vapid_subject: str = "mailto:leads@idealz.lk"
+
     # Integrations: key required by POST /api/v1/inquiries (leave empty to disable the API)
     api_key: str | None = None
 

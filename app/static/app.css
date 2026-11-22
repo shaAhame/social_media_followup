@@ -194,7 +194,7 @@ tr.is-overdue td.due-cell { color: var(--danger); font-weight: 600; }
   .topbar { padding: 0.5rem 0.8rem; gap: 0.5rem; }
   .brand { flex: 1; }
   .nav { order: 3; flex: 0 0 100%; }
-  .usermenu { order: 4; width: 100%; }
+  .usermenu { order: 4; width: 100%; white-space: normal; }
   .lead { grid-template-columns: 1fr; }
   .lead-side { align-items: stretch; }
   .due { text-align: left; }

@@ -10,6 +10,13 @@
   <a class="btn btn-primary" href="/inquiries/new">+ Log a new inquiry</a>
 </div>
 
+{% if not has_device and settings().notifications_enabled %}
+<div class="alert alert-warn">
+  📱 <strong>Get your call list on your phone every morning.</strong>
+  <a href="/account/notifications">Turn on notifications</a>, and add the app to your home screen.
+</div>
+{% endif %}
+
 <div class="tiles">
   <a class="tile {{ 'alert-tile' if stats.overdue }}" href="/followups{{ '?owner=me' if scoped }}">
     <div class="value">{{ stats.overdue }}</div><div class="label">Overdue follow-ups</div>

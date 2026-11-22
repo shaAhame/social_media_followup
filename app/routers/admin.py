@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Channel, ChannelKind, Inquiry, Product, Role, User
+from app.models import Channel, ChannelKind, Inquiry, Product, PushSubscription, Role, User
 from app.security import (
     WeakPassword,
     hash_password,
@@ -27,7 +27,12 @@ router = APIRouter(prefix="/admin")
 @router.get("/users")
 def users(request: Request, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     rows = db.scalars(select(User).order_by(User.is_active.desc(), User.full_name)).all()
-    return render(request, "admin/users.html", {"rows": rows})
+    devices = dict(
+        db.execute(
+            select(PushSubscription.user_id, func.count()).group_by(PushSubscription.user_id)
+        ).all()
+    )
+    return render(request, "admin/users.html", {"rows": rows, "devices": devices})
 
 
 @router.get("/users/new")

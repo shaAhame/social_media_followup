@@ -161,5 +161,7 @@ Railway setup. When needed:
    `external_ref = message id`. No schema change is needed.
 3. **Stock and price lookup:** add a service that queries your ERP and shows stock on the
    inquiry page.
-4. **Reminders:** a scheduled job (Railway cron) can send each salesperson their morning
-   call list using the same `followup_queues()` function.
+4. **Reminders (done):** `app/services/digests.py` sends the morning call list and the
+   evening report as Web Push notifications. A minute-by-minute in-process scheduler claims
+   a `job_runs (job, date)` row before sending, so each job runs once per day across restarts
+   and workers. VAPID keys are generated on first use and stored in `app_settings`.

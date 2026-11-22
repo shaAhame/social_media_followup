@@ -11,6 +11,8 @@ Data model (see docs/ARCHITECTURE.md for the diagram):
 * ``Channel``   - where the lead came from (WhatsApp hotlines, Facebook, Instagram ...).
 * ``Product``   - optional catalogue used for autocomplete and clean reporting.
 * ``User``      - staff accounts with a role.
+* ``PushSubscription`` - a phone/browser that receives notifications for a user.
+* ``AppSetting`` / ``JobRun`` - small key-value store and once-per-day job ledger.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -203,6 +206,13 @@ class User(TimestampMixin, Base):
     role: Mapped[Role] = mapped_column(str_enum(Role), default=Role.SALES)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    # Phone notifications: 9:45 call list and evening manager report
+    notify_morning: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    notify_evening: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+
+    push_subscriptions: Mapped[list[PushSubscription]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     @property
     def first_name(self) -> str:
@@ -341,3 +351,42 @@ class Activity(Base):
 
     inquiry: Mapped[Inquiry] = relationship(back_populates="activities")
     user: Mapped[User | None] = relationship()
+
+
+class PushSubscription(Base):
+    """One device (phone or browser) that has allowed notifications for a user."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    device_label: Mapped[str | None] = mapped_column(String(120))
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_success_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="push_subscriptions")
+
+
+class AppSetting(Base):
+    """Values the app generates and keeps itself (e.g. the notification signing keys)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, nullable=False)
+
+
+class JobRun(Base):
+    """Ledger that makes each daily job run once per day, even across restarts/workers."""
+
+    __tablename__ = "job_runs"
+
+    job: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, nullable=False)
+    sent: Mapped[int] = mapped_column(Integer, default=0)
