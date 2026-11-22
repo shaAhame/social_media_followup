@@ -60,7 +60,7 @@
     {{ m.error(errors, 'timeframe') }}
   </div>
 
-  <div class="field {{ 'has-error' if errors.planned_date }}" data-show-for="timeframe" data-show-when="on_date" style="max-width:260px">
+  <div class="field {{ 'has-error' if errors.planned_date }} {{ '' if values.timeframe == 'on_date' else 'is-hidden' }}" data-show-for="timeframe" data-show-when="on_date" style="max-width:320px">
     <label for="planned_date">Date the customer plans to buy</label>
     <input id="planned_date" name="planned_date" type="date" value="{{ values.planned_date or '' }}"
            min="{{ today() if not editing else '' }}">
@@ -109,7 +109,7 @@
       <select id="status" name="status" data-controls-visibility>{{ m.options(InquiryStatus.choices(), values.status) }}</select>
       {{ m.error(errors, 'status') }}
     </div>
-    <div class="field {{ 'has-error' if errors.lost_reason }}" data-show-for="status" data-show-when="lost">
+    <div class="field {{ 'has-error' if errors.lost_reason }} {{ '' if values.status == 'lost' else 'is-hidden' }}" data-show-for="status" data-show-when="lost">
       <label for="lost_reason">Lost reason</label>
       <select id="lost_reason" name="lost_reason">{{ m.options(LostReason.choices(), values.lost_reason, 'Choose…') }}</select>
       {{ m.error(errors, 'lost_reason') }}

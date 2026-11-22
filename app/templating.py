@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
@@ -17,6 +18,24 @@ from app.services.phone import display_phone, tel_link, whatsapp_link
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 env = templates.env
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+def _asset_versions() -> dict[str, str]:
+    """Content hash per static file, so browsers fetch new CSS/JS after every deploy."""
+    versions = {}
+    for path in _STATIC_DIR.iterdir():
+        if path.is_file():
+            versions[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+    return versions
+
+
+_ASSET_VERSIONS = _asset_versions()
+
+
+def static_url(name: str) -> str:
+    return f"/static/{name}?v={_ASSET_VERSIONS.get(name, '0')}"
 
 
 def _settings():
@@ -143,6 +162,7 @@ env.globals.update(
     whatsapp_link=whatsapp_link,
     is_overdue=is_overdue,
     greeting=greeting,
+    static_url=static_url,
     query_with=query_with,
     today=lambda: utcnow().astimezone(_settings().tz).date(),
     Timeframe=models.Timeframe,

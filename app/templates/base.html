@@ -6,8 +6,8 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{% endblock %} · {{ settings().app_name }}</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.0">
-  <script src="/static/app.js?v=1.0.0" defer></script>
+  <link rel="stylesheet" href="{{ static_url('app.css') }}">
+  <script src="{{ static_url('app.js') }}" defer></script>
 </head>
 <body>
 {% if user %}

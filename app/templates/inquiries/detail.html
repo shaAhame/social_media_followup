@@ -72,7 +72,7 @@
         <select id="outcome" name="outcome" data-controls-visibility>{{ m.options(ContactOutcome.choices(), lv.outcome, 'Choose… (leave empty for a note)') }}</select>
         {{ m.error(errors, 'outcome') }}
       </div>
-      <div class="field {{ 'has-error' if errors.lost_reason }}" data-show-for="outcome" data-show-when="lost">
+      <div class="field {{ 'has-error' if errors.lost_reason }} {{ '' if lv.outcome == 'lost' else 'is-hidden' }}" data-show-for="outcome" data-show-when="lost">
         <label for="lost_reason">Why not buying?</label>
         <select id="lost_reason" name="lost_reason">{{ m.options(LostReason.choices(), lv.lost_reason, 'Choose…') }}</select>
         {{ m.error(errors, 'lost_reason') }}
@@ -82,7 +82,7 @@
         <textarea id="note" name="note" placeholder="e.g. Sent price Rs 389,000. Wants black, will decide after salary.">{{ lv.note or '' }}</textarea>
         {{ m.error(errors, 'note') }}
       </div>
-      <div class="field {{ 'has-error' if errors.next_at }}" data-show-for="outcome" data-show-when="won,lost" data-show-negate>
+      <div class="field {{ 'has-error' if errors.next_at }} {{ 'is-hidden' if lv.outcome in ('won', 'lost') }}" data-show-for="outcome" data-show-when="won,lost" data-show-negate>
         <label for="next_at">Next follow-up (optional)</label>
         <input id="next_at" name="next_at" type="datetime-local" value="{{ lv.next_at or '' }}">
         <div class="hint">Leave empty to use the automatic schedule for "{{ inquiry.timeframe_label }}".</div>

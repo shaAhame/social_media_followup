@@ -425,3 +425,18 @@ def test_log_inquiry_with_specific_date(client, make_user, channels, db, setting
     assert inquiry.timeframe_label in page
     edit = client.get(f"/inquiries/{inquiry.id}/edit").text
     assert f'value="{planned.isoformat()}"' in edit
+
+
+def test_date_box_hidden_unless_pick_a_date_and_assets_versioned(client, make_user, channels):
+    import re
+
+    login(client, make_user(Role.COORDINATOR))
+    form = client.get("/inquiries/new").text
+    date_box = re.search(r'<div class="field[^"]*"[^>]*data-show-for="timeframe"', form).group(0)
+    assert "is-hidden" in date_box  # hidden on first load, even before JavaScript runs
+    assert re.search(r'/static/app\.js\?v=[0-9a-f]{10}"', form)  # cache-busting hash
+    error = _new_inquiry(client, channels[0].id, timeframe="on_date")
+    date_box = re.search(
+        r'<div class="field[^"]*"[^>]*data-show-for="timeframe"', error.text
+    ).group(0)
+    assert "is-hidden" not in date_box  # stays open when the date is what's missing
