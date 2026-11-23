@@ -36,6 +36,12 @@
             <span><strong>{{ morning_time }} call list</strong>: how many follow-ups are overdue and due today, and who to contact first{% if user.can_coordinate %}, plus unassigned leads{% endif %}. Not sent on days with nothing to do.</span>
           </label>
         </div>
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" name="notify_assigned" value="1" {{ 'checked' if user.notify_assigned }}>
+            <span><strong>New lead assigned to me</strong>: straight away, when a coordinator gives you a lead. Tap it to open the lead.</span>
+          </label>
+        </div>
         {% if user.can_coordinate %}
         <div class="field">
           <label class="checkbox">

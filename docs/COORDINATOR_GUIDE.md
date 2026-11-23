@@ -68,6 +68,10 @@ When you log a result on an unassigned lead, it becomes yours.
 Every morning at 9:45 you'll get your call list (only on days you have follow-ups).
 Tap it to open your list. Managers also get a report at 19:30.
 
+When a coordinator assigns you a lead, you get **"New lead for you: Nimal – iPhone 17 Pro"**
+straight away. For "Today" buyers, contact them right away. Each type of notification can be
+switched off on the 🔔 Notifications page.
+
 ## Daily routine
 
 | Time | Who | What |

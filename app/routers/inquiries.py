@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -30,6 +30,7 @@ from app.security import (
     verify_csrf,
 )
 from app.services import inquiries as svc
+from app.services.alerts import notify_assignment_task
 from app.services.lookups import active_channels, active_users
 from app.services.phone import display_phone, try_normalize_phone
 from app.services.reports import inquiries_to_csv
@@ -192,6 +193,7 @@ def create_inquiry(
     marketing_consent: str | None = Form(None),
     confirm_duplicate: str | None = Form(None),
     action: str = Form("save"),
+    background: BackgroundTasks = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -247,6 +249,8 @@ def create_inquiry(
 
     inquiry = svc.create_inquiry(db, clean, user, settings, utcnow())
     db.commit()
+    if inquiry.assigned_to_id and inquiry.assigned_to_id != user.id:
+        background.add_task(notify_assignment_task, inquiry.id, user.id)
     request.session["last_channel_id"] = clean.channel.id
     when = smartdt(inquiry.next_followup_at) or "not scheduled"
     flash(request, f"Inquiry #{inquiry.id} saved. Next follow-up: {when}.")
@@ -436,6 +440,7 @@ def edit_inquiry(
     marketing_consent: str | None = Form(None),
     status: str = Form(""),
     lost_reason: str = Form(""),
+    background: BackgroundTasks = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -443,6 +448,7 @@ def edit_inquiry(
     inquiry = _get_inquiry(db, inquiry_id)
     if not can_edit_inquiry(user, inquiry):
         raise HTTPException(403, "This inquiry belongs to another salesperson.")
+    previous_owner = inquiry.assigned_to_id
     if not user.can_coordinate:
         # Sales staff cannot hand leads to colleagues; keep the current owner.
         assigned_to_id = str(inquiry.assigned_to_id or user.id)
@@ -509,6 +515,8 @@ def edit_inquiry(
             status_code=422,
         )
     db.commit()
+    if inquiry.assigned_to_id and inquiry.assigned_to_id not in (previous_owner, user.id):
+        background.add_task(notify_assignment_task, inquiry.id, user.id)
     flash(request, "Saved." if changes else "No changes.")
     return RedirectResponse(f"/inquiries/{inquiry.id}", 303)
 

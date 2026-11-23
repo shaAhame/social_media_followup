@@ -119,11 +119,13 @@ def update_settings(
     request: Request,
     notify_morning: str | None = Form(None),
     notify_evening: str | None = Form(None),
+    notify_assigned: str | None = Form(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user.notify_morning = bool(notify_morning)
     user.notify_evening = bool(notify_evening)
+    user.notify_assigned = bool(notify_assigned)
     db.commit()
     flash(request, "Notification settings saved.")
     return RedirectResponse("/account/notifications", 303)

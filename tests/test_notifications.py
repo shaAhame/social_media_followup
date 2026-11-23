@@ -242,3 +242,96 @@ def test_notifications_page_buttons_and_dashboard_nudge(client, make_user, db, s
     db.expire_all()
     db.refresh(user)
     assert user.notify_morning and not user.notify_evening
+
+
+# ---------------------------------------------------------------- instant assignment alert
+def _form(channel_id, **extra):
+    return {
+        "phone": "0771234567",
+        "customer_name": "Nimal",
+        "channel_id": channel_id,
+        "product_text": "iPhone 17 Pro",
+        "timeframe": "today",
+        **extra,
+    }
+
+
+def test_salesperson_alerted_when_coordinator_assigns_new_lead(
+    client, make_user, channels, db, sent
+):
+    coord = make_user(Role.COORDINATOR, name="Dilani Coordinator")
+    rep = make_user(Role.SALES, name="Kasun Perera")
+    _device(db, rep)
+    login(client, coord)
+    response = post_form(
+        client,
+        "/inquiries/new",
+        _form(channels[0].id, assigned_to_id=str(rep.id)),
+        token_page="/inquiries/new",
+    )
+    assert response.status_code == 303
+    assert len(sent) == 1
+    endpoint, payload = sent[0]
+    assert endpoint == ENDPOINT
+    assert payload["title"] == "New lead for you: Nimal – iPhone 17 Pro"
+    assert "Buying: Today" in payload["body"] and channels[0].name in payload["body"]
+    assert "assigned by Dilani" in payload["body"]
+    assert payload["url"].startswith("/inquiries/")
+
+
+def test_alert_on_reassignment_only(client, make_user, channels, db, sent):
+    coord = make_user(Role.COORDINATOR, name="Dilani Coordinator")
+    rep_a = make_user(Role.SALES, name="Rep A")
+    rep_b = make_user(Role.SALES, name="Rep B")
+    _device(db, rep_a, ENDPOINT + "a")
+    _device(db, rep_b, ENDPOINT + "b")
+    login(client, coord)
+    post_form(client, "/inquiries/new", _form(channels[0].id), token_page="/inquiries/new")
+    assert sent == []  # unassigned: nobody to tell
+    inquiry_id = db.scalar(select(svc.Inquiry.id))
+    page = f"/inquiries/{inquiry_id}/edit"
+    edit = {**_form(channels[0].id), "status": "new"}
+    post_form(client, page, {**edit, "assigned_to_id": str(rep_a.id)}, token_page=page)
+    post_form(
+        client, page, {**edit, "assigned_to_id": str(rep_a.id), "notes": "x"}, token_page=page
+    )
+    post_form(client, page, {**edit, "assigned_to_id": str(rep_b.id)}, token_page=page)
+    assert [endpoint for endpoint, _ in sent] == [ENDPOINT + "a", ENDPOINT + "b"]
+
+
+def test_no_alert_for_self_assignment_or_when_turned_off(client, make_user, channels, db, sent):
+    coord = make_user(Role.COORDINATOR, name="Dilani Coordinator")
+    rep = make_user(Role.SALES, name="Kasun Perera")
+    _device(db, coord, ENDPOINT + "coord")
+    _device(db, rep, ENDPOINT + "rep")
+    rep.notify_assigned = False
+    db.commit()
+    login(client, coord)
+    post_form(
+        client,
+        "/inquiries/new",
+        _form(channels[0].id, assigned_to_id=str(coord.id)),
+        token_page="/inquiries/new",
+    )
+    post_form(
+        client,
+        "/inquiries/new",
+        _form(channels[0].id, assigned_to_id=str(rep.id), phone="0712345678"),
+        token_page="/inquiries/new",
+    )
+    assert sent == []
+
+
+def test_assignment_alert_setting_saved(client, make_user, db):
+    rep = make_user(Role.SALES)
+    login(client, rep)
+    assert 'name="notify_assigned"' in client.get("/account/notifications").text
+    post_form(
+        client,
+        "/account/notifications/settings",
+        {"notify_morning": "1"},
+        token_page="/account/notifications",
+    )
+    db.expire_all()
+    db.refresh(rep)
+    assert rep.notify_morning and not rep.notify_assigned

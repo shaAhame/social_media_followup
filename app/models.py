@@ -209,6 +209,8 @@ class User(TimestampMixin, Base):
     # Phone notifications: 9:45 call list and evening manager report
     notify_morning: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     notify_evening: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Instant alert when a coordinator assigns a lead to this person
+    notify_assigned: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
     push_subscriptions: Mapped[list[PushSubscription]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

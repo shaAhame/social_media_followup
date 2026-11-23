@@ -19,6 +19,8 @@ Built for iDealz Lanka (Pvt) Ltd: a coordinator logs each inquiry in about 20 se
 - **Phone notifications**: each salesperson gets their call list at 9:45 every morning, and
   managers get a daily report at 19:30 (today's inquiries, sales, lost reasons, overdue per
   person). Tapping a notification opens the right page.
+- **Instant "new lead for you" alert** when a coordinator assigns a lead to a salesperson
+  (on logging it or reassigning it later), with the product, buying time and source.
 - **Installs like an app** on Android and iPhone (Add to Home Screen): icon, full screen.
 - Records **marketing consent** per customer (Sri Lanka PDPA).
 - Has an **API** so website forms, chatbots or a future WhatsApp Cloud API bridge can add
@@ -178,5 +180,5 @@ app/
   templates/ static/ server-rendered UI (no build step)
   cli.py             create-user, seed-demo
 alembic/             database migrations
-tests/               109 tests (services, web flows, API, reports, migrations)
+tests/               113 tests (services, web flows, API, reports, migrations)
 ```
