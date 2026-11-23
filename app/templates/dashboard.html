@@ -2,80 +2,262 @@
 {% import "_macros.html" as m with context %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <h1>{{ greeting() }}, {{ user.first_name }}</h1>
-    <div class="muted">{{ 'Your leads' if scoped else 'All hotlines and social channels' }} · {{ today().strftime('%A %d %B %Y') }}</div>
-  </div>
-  <a class="btn btn-primary" href="/inquiries/new">+ Log a new inquiry</a>
-</div>
+{% set q = d.queues %}
+{% set overdue = q.overdue|length %}
+{% set due = q.due_today|length %}
+{% set list_url = '/followups?owner=me' if d.scoped else '/followups' %}
 
-{% if not has_device and settings().notifications_enabled %}
-<div class="alert alert-warn">
-  📱 <strong>Get your call list on your phone every morning.</strong>
-  <a href="/account/notifications">Turn on notifications</a>, and add the app to your home screen.
-</div>
-{% endif %}
+<div class="dash">
 
-<div class="tiles">
-  <a class="tile {{ 'alert-tile' if stats.overdue }}" href="/followups{{ '?owner=me' if scoped }}">
-    <div class="value">{{ stats.overdue }}</div><div class="label">Overdue follow-ups</div>
-  </a>
-  <a class="tile" href="/followups{{ '?owner=me' if scoped }}">
-    <div class="value">{{ stats.due_today }}</div><div class="label">Due later today</div>
-  </a>
-  <a class="tile" href="/inquiries?view=all&date_from={{ today() }}{{ '&assigned=me' if scoped else '&assigned=' }}">
-    <div class="value">{{ stats.new_today }}</div><div class="label">New inquiries today</div>
-  </a>
-  <a class="tile" href="/inquiries{{ '' if scoped else '?assigned=' }}">
-    <div class="value">{{ stats.open }}</div><div class="label">Open inquiries</div>
-  </a>
-  <div class="tile">
-    <div class="value">{{ stats.month_won }} <small>/ {{ stats.month_total }}</small></div>
-    <div class="label">Sold this month ({{ stats.month_conversion }}%)</div>
-  </div>
-  {% if not scoped %}
-  <a class="tile {{ 'alert-tile' if stats.unassigned }}" href="/inquiries?assigned=none">
-    <div class="value">{{ stats.unassigned }}</div><div class="label">Open and unassigned</div>
-  </a>
-  {% endif %}
-</div>
-
-<div class="grid grid-2">
-  <section>
-    <h2>Call now <small>(overdue first, then today by urgency)</small></h2>
-    {% if call_list %}
-      <div class="leads">{% for i in call_list %}{{ m.lead_card(i, '/') }}{% endfor %}</div>
-      <p><a href="/followups{{ '?owner=me' if scoped }}">See the full follow-up list →</a></p>
-    {% else %}
-      <div class="empty">Nothing due right now. 🎉</div>
-    {% endif %}
-    {% if stats.needs_decision %}
-      <div class="alert alert-warn" style="margin-top:1rem">
-        {{ stats.needs_decision }} open inquir{{ 'y has' if stats.needs_decision == 1 else 'ies have' }} used all automatic follow-ups.
-        <a href="/followups{{ '?owner=me' if scoped }}#decide">Mark them sold, lost, or set a new date.</a>
+  {# ---------------------------------------------------------------- hero: today's work #}
+  <section class="hero span-12" aria-label="Today">
+    {% set r = 52 %}{% set c = 326.73 %}
+    <div class="ring" role="img" aria-label="{{ d.done_today }} of {{ d.today_total }} follow-ups done today">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="track" cx="60" cy="60" r="{{ r }}"/>
+        <circle class="value" cx="60" cy="60" r="{{ r }}" stroke-dasharray="{{ c }}" stroke-dashoffset="{{ '%.2f'|format(c * (1 - d.progress)) }}"/>
+      </svg>
+      <div class="ring-label">
+        {% if d.today_total %}
+          <strong>{{ d.done_today }}/{{ d.today_total }}</strong><span>done today</span>
+        {% else %}
+          <strong>0</strong><span>due today</span>
+        {% endif %}
       </div>
+    </div>
+    <div>
+      <div class="hero-date">{{ now_local.strftime('%A %d %B').replace(' 0', ' ') }}{{ ', your leads' if d.scoped else ', all hotlines and social channels' }}</div>
+      <h1>{{ greeting() }}, {{ user.first_name }}</h1>
+      <p>
+        {% if overdue and due %}{{ overdue }} overdue and {{ due }} due later today. Start with the overdue ones.
+        {% elif overdue %}{{ overdue }} follow-up{{ 's are' if overdue != 1 else ' is' }} overdue. Contact {{ 'these customers' if overdue != 1 else 'this customer' }} first.
+        {% elif due %}{{ due }} follow-up{{ 's' if due != 1 }} due later today. Nothing is overdue.
+        {% elif d.done_today %}All of today's follow-ups are done.
+        {% else %}Nothing is due right now. Log each new inquiry as it comes in.{% endif %}
+      </p>
+    </div>
+    <div class="hero-actions">
+      <a class="btn btn-light" href="{{ list_url }}">{{ 'Start calling' if overdue or due else 'Open follow-ups' }}</a>
+      <a class="btn btn-ghost" href="/inquiries/new">Log a new inquiry</a>
+    </div>
+  </section>
+
+  {% if not has_device and settings().notifications_enabled %}
+  <div class="alert alert-info span-12">
+    Get your call list on your phone every morning at {{ settings().morning_digest_time }}, plus an alert when a lead is assigned to you.
+    <a href="/account/notifications">Turn on notifications</a>
+  </div>
+  {% endif %}
+
+  {# ---------------------------------------------------------------- key numbers #}
+  <section class="stat-strip span-12" aria-label="Key numbers">
+    <a class="stat" href="/inquiries?view=all&date_from={{ today() }}{{ '&assigned=me' if d.scoped else '&assigned=' }}">
+      <b>{{ d.new_today }}</b><span>New today</span>
+    </a>
+    <a class="stat" href="/inquiries{{ '' if d.scoped else '?assigned=' }}">
+      <b>{{ d.open_total }}</b><span>Open inquiries</span>
+    </a>
+    {% if not d.scoped %}
+    <a class="stat {{ 'is-alert' if d.unassigned }}" href="/inquiries?assigned=none">
+      <b>{{ d.unassigned }}</b><span>Waiting to be assigned</span>
+    </a>
+    {% endif %}
+    <a class="stat {{ 'is-alert' if q.needs_decision }}" href="{{ list_url }}#decide">
+      <b>{{ q.needs_decision|length }}</b><span>Need a decision</span>
+    </a>
+    <div class="stat">
+      <b>{{ d.month_won }}<small> of {{ d.month_total }}</small></b><span>Sold this month ({{ d.month_conversion }}%)</span>
+    </div>
+    <div class="stat" title="Median time from logging an inquiry to the first call or message, last 7 days">
+      <b>{{ d.median_first_response_min|minutes }}</b><span>First reply time</span>
+    </div>
+    {% if d.scoped %}
+    <div class="stat"><b>{{ d.month_lost }}</b><span>Lost this month</span></div>
     {% endif %}
   </section>
 
-  {% if recent %}
-  <section>
-    <h2>Latest inquiries</h2>
+  {# ---------------------------------------------------------------- call list + hot leads #}
+  <section class="panel span-7" aria-labelledby="call-now">
+    <div class="panel-head">
+      <h2 id="call-now">Call now</h2>
+      <a href="{{ list_url }}">Open the follow-up list</a>
+    </div>
+    {% set call_list = (q.overdue + q.due_today)[:8] %}
+    {% if call_list %}
+      <div class="leads">{% for i in call_list %}{{ m.lead_card(i, '/') }}{% endfor %}</div>
+      {% if overdue + due > 8 %}<p class="muted" style="margin:0.8rem 0 0">{{ overdue + due - 8 }} more in the follow-up list.</p>{% endif %}
+    {% else %}
+      <div class="empty">No one to contact right now. New inquiries get their first follow-up time automatically.</div>
+    {% endif %}
+  </section>
+
+  <section class="panel span-5" aria-labelledby="hot">
+    <div class="panel-head">
+      <h2 id="hot">Ready to buy soon</h2>
+      <a href="/inquiries?timeframe=today{{ '&assigned=me' if d.scoped else '&assigned=' }}">All "Today" buyers</a>
+    </div>
+    {% if d.hot_leads %}
+    <ul class="hot">
+      {% for i in d.hot_leads %}
+      <li>
+        {% if i.timeframe == Timeframe.ON_DATE and i.planned_date %}
+          {% set is_today = i.planned_date <= today() %}
+          <span class="when-chip {{ 'is-today' if is_today }}"><b>{{ i.planned_date.day }}</b><small>{{ i.planned_date.strftime('%b') }}</small></span>
+        {% else %}
+          <span class="when-chip is-today"><small>Buying</small><b style="font-size:0.85rem">today</b></span>
+        {% endif %}
+        <a href="/inquiries/{{ i.id }}">
+          <span class="who">{{ i.customer.display_name }}</span>
+          <span class="what">{{ i.product_text }}, {{ i.assigned_to.first_name if i.assigned_to else 'unassigned' }}</span>
+        </a>
+        <a class="btn btn-wa btn-small" href="{{ followup_whatsapp(i, user) }}" target="_blank" rel="noopener" aria-label="WhatsApp {{ i.customer.display_name }}">WhatsApp</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <div class="empty">No one is buying today or has a date in the next 7 days.</div>
+    {% endif %}
+  </section>
+
+  {# ---------------------------------------------------------------- pipeline + trend #}
+  <section class="panel span-5" aria-labelledby="pipeline">
+    <div class="panel-head"><h2 id="pipeline">Open pipeline</h2><span class="muted">{{ d.pipeline_open }} open</span></div>
+    <div class="pipe" role="img" aria-label="Open inquiries by stage">
+      {% for stage, count in d.pipeline %}{% if count %}<span class="s{{ loop.index }}" style="flex: {{ count }}" title="{{ stage.label }}: {{ count }}"></span>{% endif %}{% endfor %}
+    </div>
+    <div class="pipe-legend">
+      {% for stage, count in d.pipeline %}
+      <a href="/inquiries?view={{ stage.value }}{{ '&assigned=me' if d.scoped else '&assigned=' }}">
+        <b>{{ count }}</b><span><i class="s{{ loop.index }}"></i>{{ stage.label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="month-line">
+      <span><b>{{ d.month_total }}</b> inquiries this month</span>
+      <span><b>{{ d.month_won }}</b> sold</span>
+      <span><b>{{ d.month_lost }}</b> lost</span>
+      <span><b>{{ d.month_conversion }}%</b> converted</span>
+    </div>
+  </section>
+
+  <section class="panel span-7" aria-labelledby="trend">
+    <div class="panel-head">
+      <h2 id="trend">Last 14 days</h2>
+      <div class="legend"><span><i style="background:#9cc8ec"></i>Inquiries</span><span><i style="background:var(--brand)"></i>Of which sold</span></div>
+    </div>
+    {% set top = d.trend_max or 1 %}
+    <div class="trend" role="img" aria-label="Inquiries and sales per day for the last 14 days">
+      {% for bar in d.trend %}
+      {% set rest = bar.inquiries - bar.sold %}
+      <div class="day {{ 'only-sold' if bar.sold and not rest }}" tabindex="0">
+        <span class="tip">{{ bar.day.strftime('%a %d %b').replace(' 0', ' ') }}: {{ bar.inquiries }} inquir{{ 'y' if bar.inquiries == 1 else 'ies' }}, {{ bar.sold }} sold</span>
+        {% if rest %}<span class="rest" style="height: {{ '%.1f'|format(100 * rest / top) }}%"></span>{% endif %}
+        {% if bar.sold %}<span class="sold" style="height: {{ '%.1f'|format(100 * bar.sold / top) }}%"></span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="trend-axis" aria-hidden="true">{% for bar in d.trend %}<span>{{ 'Today' if loop.last else bar.day.day }}</span>{% endfor %}</div>
+  </section>
+
+  {% if not d.scoped %}
+  {# ---------------------------------------------------------------- team board #}
+  <section class="panel span-12" aria-labelledby="team">
+    <div class="panel-head"><h2 id="team">Team today</h2><a href="/reports">Full reports</a></div>
+    {% if d.team %}
+    <div class="table-wrap">
+      <table class="team">
+        <thead><tr><th>Salesperson</th><th class="num">Open</th><th class="num">Overdue</th><th class="num">Due today</th><th class="num">Sold this month</th><th class="num">Converted</th><th>Phone alerts</th></tr></thead>
+        <tbody>
+        {% for t in d.team %}
+          <tr>
+            <td><a class="person" href="/followups?owner={{ t.user.id }}"><span class="mini-avatar">{{ (t.user.full_name.split()|map('first')|join)[:2]|upper }}</span>{{ t.user.full_name }}</a></td>
+            <td class="num">{{ t.open }}</td>
+            <td class="num">{% if t.overdue %}<span class="overdue-pill">{{ t.overdue }}</span>{% else %}0{% endif %}</td>
+            <td class="num">{{ t.due_today }}</td>
+            <td class="num">{{ t.sold_month }} <small>of {{ t.total_month }}</small></td>
+            <td class="num">{{ t.conversion }}%</td>
+            <td>{% if t.has_device %}<span class="bell-on">On</span>{% else %}<span class="bell-off">Not set up</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty">Add salespeople under Settings, Staff accounts, to see the team here.</div>
+    {% endif %}
+  </section>
+
+  {# ---------------------------------------------------------------- this month #}
+  {% set rep = d.month_report %}
+  <section class="panel span-4" aria-labelledby="sources">
+    <div class="panel-head"><h2 id="sources">Where leads came from</h2><span class="muted">this month</span></div>
+    {% if rep.by_channel %}
+    {% set top_src = rep.by_channel[0].total %}
+    <ul class="ranked">
+      {% for row in rep.by_channel[:7] %}
+      <li>
+        <span class="name">{{ row.label }}</span>
+        <span class="figure">{{ row.total }} leads, {{ row.won }} sold</span>
+        <span class="bar-track"><span class="bar-fill" style="display:block; width: {{ (100 * row.total / top_src)|round(1) }}%; background: var(--brand)"></span></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty">No inquiries this month yet.</div>{% endif %}
+  </section>
+
+  <section class="panel span-4" aria-labelledby="lost">
+    <div class="panel-head"><h2 id="lost">Why sales were lost</h2><span class="muted">this month</span></div>
+    {% if rep.lost_reasons %}
+    {% set top_lost = rep.lost_reasons[0][1] %}
+    <ul class="ranked">
+      {% for reason, count in rep.lost_reasons[:6] %}
+      <li>
+        <span class="name">{{ reason }}</span><span class="figure">{{ count }}</span>
+        <span class="bar-track"><span class="bar-fill" style="display:block; width: {{ (100 * count / top_lost)|round(1) }}%; background: #5ea6dc"></span></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty">No lost sales recorded this month.</div>{% endif %}
+  </section>
+
+  <section class="panel span-4" aria-labelledby="products">
+    <div class="panel-head"><h2 id="products">Most asked-for</h2><span class="muted">this month</span></div>
+    {% if rep.top_products %}
+    {% set top_prod = rep.top_products[0].total %}
+    <ul class="ranked">
+      {% for row in rep.top_products[:7] %}
+      <li>
+        <span class="name">{{ row.label }}</span><span class="figure">{{ row.total }}</span>
+        <span class="bar-track"><span class="bar-fill" style="display:block; width: {{ (100 * row.total / top_prod)|round(1) }}%; background: #1f84c9"></span></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty">No inquiries this month yet.</div>{% endif %}
+  </section>
+
+  {# ---------------------------------------------------------------- latest #}
+  <section class="panel span-12" aria-labelledby="latest">
+    <div class="panel-head"><h2 id="latest">Latest inquiries</h2><a href="/inquiries?view=all&assigned=">All inquiries</a></div>
+    {% if d.latest %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Customer</th><th>Product</th><th>Source</th><th>Logged</th></tr></thead>
+        <thead><tr><th>Customer</th><th>Product</th><th>When buying</th><th>Source</th><th>Salesperson</th><th>Status</th><th>Logged</th></tr></thead>
         <tbody>
-        {% for i in recent %}
+        {% for i in d.latest %}
           <tr>
-            <td><a href="/inquiries/{{ i.id }}">{{ i.customer.display_name }}</a><br><small>{{ i.customer.phone_e164|phone }}</small></td>
-            <td>{{ i.product_text }}<br>{{ m.timeframe_badge(i.timeframe, i) }}</td>
+            <td><a href="/inquiries/{{ i.id }}">{{ i.customer.display_name }}</a><br><small class="nowrap">{{ i.customer.phone_e164|phone }}</small></td>
+            <td>{{ i.product_text }}</td>
+            <td>{{ m.timeframe_badge(i.timeframe, i) }}</td>
             <td>{{ i.channel.name }}</td>
+            <td>{{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</td>
+            <td>{{ m.status_badge(i.status) }}</td>
             <td class="nowrap">{{ i.created_at|reltime }}</td>
           </tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
+    {% else %}<div class="empty">No inquiries yet. Log the first one with New inquiry.</div>{% endif %}
   </section>
   {% endif %}
 </div>

@@ -26,7 +26,10 @@ Built for iDealz Lanka (Pvt) Ltd: a coordinator logs each inquiry in about 20 se
 - Has an **API** so website forms, chatbots or a future WhatsApp Cloud API bridge can add
   leads automatically. Retries are safe because duplicate submissions are detected.
 
-Works on desktop and mobile. Staff guide: [docs/COORDINATOR_GUIDE.md](docs/COORDINATOR_GUIDE.md).
+Works on desktop and mobile, with a liquid-glass interface (frosted panels over the iDealz
+blue, a bottom tab bar on phones, solid panels when "Reduce transparency" is on). The
+dashboard shows today's progress, the call list, buyers due soon, the open pipeline, the last
+14 days, the team board, lead sources, lost reasons, top products and the latest inquiries. Staff guide: [docs/COORDINATOR_GUIDE.md](docs/COORDINATOR_GUIDE.md).
 Technical design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
@@ -180,5 +183,5 @@ app/
   templates/ static/ server-rendered UI (no build step)
   cli.py             create-user, seed-demo
 alembic/             database migrations
-tests/               113 tests (services, web flows, API, reports, migrations)
+tests/               117 tests (services, web flows, API, reports, migrations)
 ```

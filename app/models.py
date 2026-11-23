@@ -270,7 +270,7 @@ class Customer(TimestampMixin, Base):
 
     @property
     def display_name(self) -> str:
-        return self.name or "Unknown name"
+        return self.name or "No name"
 
 
 class Inquiry(TimestampMixin, Base):

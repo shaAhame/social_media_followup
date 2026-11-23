@@ -31,8 +31,8 @@
     <div class="lead-meta">
       {{ timeframe_badge(i.timeframe, i) }} {{ status_badge(i.status) }}
       <span class="muted">{{ i.channel.name }}</span>
-      <span class="muted">· {{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</span>
-      {% if i.followup_count %}<span class="muted">· {{ i.followup_count }} follow-up{{ 's' if i.followup_count != 1 }}</span>{% endif %}
+      <span class="muted">{{ i.assigned_to.full_name if i.assigned_to else 'Unassigned' }}</span>
+      {% if i.followup_count %}<span class="muted">{{ i.followup_count }} follow-up{{ 's' if i.followup_count != 1 }} done</span>{% endif %}
     </div>
   </div>
   <div class="lead-side">

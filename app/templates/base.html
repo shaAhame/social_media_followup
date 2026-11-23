@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}{% endblock %} · {{ settings().app_name }}</title>
+  <title>{% block title %}{% endblock %} | {{ settings().app_name }}</title>
   <meta name="csrf-token" content="{{ csrf_token(request) }}">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0c77bd">
@@ -17,29 +17,67 @@
   <link rel="stylesheet" href="{{ static_url('app.css') }}">
   <script src="{{ static_url('app.js') }}" defer></script>
 </head>
-<body>
+<body class="{{ 'signed-in' if user else 'signed-out' }}">
+<div class="backdrop" aria-hidden="true"></div>
 {% if user %}
 {% set path = request.url.path %}
-<header class="topbar">
-  <a class="brand" href="/">{{ settings().company_name }} <span>Leads</span></a>
+{% set initials = (user.full_name.split()|map('first')|join)[:2]|upper %}
+<header class="topnav glass">
+  <a class="brand" href="/" aria-label="Dashboard">
+    <img src="/static/icons/icon-192.png" alt="" width="30" height="30">
+    <span>{{ settings().company_name }} <strong>Leads</strong></span>
+  </a>
   <nav class="nav" aria-label="Main">
-    <a href="/" class="{{ 'active' if path == '/' }}">Dashboard</a>
-    <a href="/followups" class="{{ 'active' if path.startswith('/followups') }}">Follow-ups</a>
-    <a href="/inquiries" class="{{ 'active' if path.startswith('/inquiries') and path != '/inquiries/new' }}">Inquiries</a>
-    {% if user.can_coordinate %}<a href="/reports" class="{{ 'active' if path.startswith('/reports') }}">Reports</a>{% endif %}
-    {% if user.can_manage %}<a href="/admin/channels" class="{{ 'active' if path.startswith('/admin') }}">Settings</a>{% endif %}
+    <a href="/" {{ 'aria-current=page' if path == '/' }}>Dashboard</a>
+    <a href="/followups" {{ 'aria-current=page' if path.startswith('/followups') }}>Follow-ups</a>
+    <a href="/inquiries" {{ 'aria-current=page' if path.startswith('/inquiries') and path != '/inquiries/new' }}>Inquiries</a>
+    {% if user.can_coordinate %}<a href="/reports" {{ 'aria-current=page' if path.startswith('/reports') }}>Reports</a>{% endif %}
+    {% if user.can_manage %}<a href="/admin/channels" {{ 'aria-current=page' if path.startswith('/admin') }}>Settings</a>{% endif %}
   </nav>
-  <a class="btn btn-primary" href="/inquiries/new">+ New inquiry</a>
-  <div class="usermenu">
-    {{ user.full_name }} ({{ user.role.label }}) ·
-    <a href="/account/notifications">🔔 Notifications</a> ·
-    <a href="/account/password">Password</a> ·
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-      <button class="linklike" type="submit">Log out</button>
-    </form>
-  </div>
+  <a class="btn btn-primary new-btn" href="/inquiries/new">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>New inquiry
+  </a>
+  <details class="usermenu">
+    <summary aria-label="Account menu"><span class="avatar">{{ initials }}</span></summary>
+    <div class="menu glass">
+      <div class="menu-head"><strong>{{ user.full_name }}</strong><small>{{ user.role.label }}</small></div>
+      <a href="/account/notifications">Notifications</a>
+      <a href="/account/password">Change password</a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <button type="submit">Log out</button>
+      </form>
+    </div>
+  </details>
 </header>
+
+<nav class="tabbar glass" aria-label="Main (mobile)">
+  <a href="/" {{ 'aria-current=page' if path == '/' }}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg>Home
+  </a>
+  <a href="/followups" {{ 'aria-current=page' if path.startswith('/followups') }}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11"/><path d="m3.5 6.5 1.2 1.2 2-2.4M3.5 12l1.2 1.2 2-2.4M3.5 17.5l1.2 1.2 2-2.4"/></svg>Follow-ups
+  </a>
+  <a href="/inquiries/new" class="tab-new" aria-label="New inquiry">
+    <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+  </a>
+  <a href="/inquiries" {{ 'aria-current=page' if path.startswith('/inquiries') and path != '/inquiries/new' }}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Inquiries
+  </a>
+  <details class="tab-more">
+    <summary><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></svg>More</summary>
+    <div class="menu glass">
+      {% if user.can_coordinate %}<a href="/reports">Reports</a>{% endif %}
+      {% if user.can_manage %}<a href="/admin/channels">Settings</a>{% endif %}
+      <a href="/account/notifications">Notifications</a>
+      <a href="/account/password">Change password</a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <button type="submit">Log out</button>
+      </form>
+    </div>
+  </details>
+</nav>
 {% endif %}
 <main class="container">
   {% for category, message in pop_flashes(request) %}

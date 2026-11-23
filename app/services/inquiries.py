@@ -143,6 +143,34 @@ class CleanInquiry:
     warnings: list[str] = field(default_factory=list)
 
 
+PLACEHOLDER_NAMES = {
+    "na",
+    "n/a",
+    "n.a",
+    "n.a.",
+    "none",
+    "nil",
+    "no name",
+    "no name given",
+    "unknown",
+    "-",
+    "--",
+    ".",
+    "x",
+    "customer",
+    "sir",
+    "madam",
+}
+
+
+def clean_customer_name(value) -> str | None:
+    """Drop placeholders staff type when they don't know the name ('NA', 'No name given')."""
+    name = clean_text(value, 120)
+    if name and name.lower().strip(" ~") in PLACEHOLDER_NAMES:
+        return None
+    return name
+
+
 def _to_int(value) -> int | None:
     if value in (None, ""):
         return None
@@ -232,7 +260,7 @@ def clean_inquiry_input(
         product_text=product.name if product else product_text,
         product=product,
         timeframe=timeframe,
-        customer_name=clean_text(data.customer_name, 120),
+        customer_name=clean_customer_name(data.customer_name),
         payment_type=payment_type,
         budget_lkr=budget,
         assignee=assignee,
