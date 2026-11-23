@@ -595,6 +595,15 @@ class InquiryFilters:
     timeframe: Timeframe | None = None
     date_from: date | None = None
     date_to: date | None = None
+    date_field: str = "logged"  # which date From/To filter on: see DATE_FIELDS
+
+
+# What the From/To date range applies to
+DATE_FIELDS = {
+    "logged": "Logged on",
+    "followup": "Follow-up due",
+    "purchase": "Planning to buy on",
+}
 
 
 def _local_date_start(d: date, settings: Settings) -> datetime:
@@ -627,11 +636,22 @@ def filtered_inquiries(
         stmt = stmt.where(Inquiry.assigned_to_id.is_(None))
     elif filters.assigned and filters.assigned.isdigit():
         stmt = stmt.where(Inquiry.assigned_to_id == int(filters.assigned))
-    if filters.date_from:
-        stmt = stmt.where(Inquiry.created_at >= _local_date_start(filters.date_from, settings))
-    if filters.date_to:
-        end = _local_date_start(filters.date_to + timedelta(days=1), settings)
-        stmt = stmt.where(Inquiry.created_at < end)
+    if filters.date_field == "purchase":
+        # a calendar date: compare directly
+        if filters.date_from:
+            stmt = stmt.where(Inquiry.planned_date >= filters.date_from)
+        if filters.date_to:
+            stmt = stmt.where(Inquiry.planned_date <= filters.date_to)
+    else:
+        column = (
+            Inquiry.next_followup_at if filters.date_field == "followup" else Inquiry.created_at
+        )
+        if filters.date_from:
+            stmt = stmt.where(column >= _local_date_start(filters.date_from, settings))
+        if filters.date_to:
+            stmt = stmt.where(
+                column < _local_date_start(filters.date_to + timedelta(days=1), settings)
+            )
     if filters.q:
         term = filters.q.strip()
         digits = re.sub(r"\D", "", term)

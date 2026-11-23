@@ -222,6 +222,21 @@ textarea { min-height: 90px; resize: vertical; }
 .filters .field { margin: 0; min-width: 140px; }
 .filters .grow { flex: 1; min-width: 200px; }
 
+/* inquiry list filter card */
+.list-filters { margin-bottom: 1rem; }
+.list-filters .filters { margin-bottom: 0.8rem; }
+.date-range { padding-top: 0.8rem; border-top: 1px solid rgba(15, 29, 46, 0.08); }
+.date-range .field { min-width: 150px; }
+.quick { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; font-size: var(--t-sm); }
+.chip {
+  padding: 0.3rem 0.75rem; border-radius: 999px; font-weight: 600; color: var(--brand-deep);
+  background: rgba(12, 119, 189, 0.08); box-shadow: inset 0 0 0 1px rgba(12, 119, 189, 0.16);
+}
+.chip:hover { background: rgba(12, 119, 189, 0.15); text-decoration: none; }
+.chip.is-active { color: #fff; background: var(--brand); box-shadow: none; }
+.range-note { margin: -0.2rem 0 1rem; color: var(--ink-2); }
+.source-cell { white-space: nowrap; max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- messages ---------- */
 .flash, .alert { padding: 0.75rem 1rem; border-radius: var(--r-item); margin-bottom: 1rem; }
 .flash-success { color: var(--ok); background: linear-gradient(180deg, rgba(230, 247, 238, 0.92), rgba(220, 243, 231, 0.84)); }

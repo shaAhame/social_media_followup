@@ -440,3 +440,66 @@ def test_date_box_hidden_unless_pick_a_date_and_assets_versioned(client, make_us
         r'<div class="field[^"]*"[^>]*data-show-for="timeframe"', error.text
     ).group(0)
     assert "is-hidden" not in date_box  # stays open when the date is what's missing
+
+
+def test_filter_and_export_by_followup_due_date(client, make_user, channels, db, settings):
+    import csv
+    import io
+    from datetime import datetime, time, timedelta
+
+    from app.db import utcnow
+
+    login(client, make_user(Role.MANAGER))
+    _new_inquiry(client, channels[0].id, phone="0771111111", customer_name="Due Tomorrow")
+    _new_inquiry(client, channels[0].id, phone="0772222222", customer_name="Due Later")
+    _new_inquiry(client, channels[0].id, phone="0773333333", customer_name="Closed Lead")
+    rows = {i.customer.name: i for i in db.scalars(select(Inquiry))}
+    today = utcnow().astimezone(settings.tz).date()
+    tomorrow = today + timedelta(days=1)
+
+    def at(d):
+        return datetime.combine(d, time(10), settings.tz)
+
+    rows["Due Tomorrow"].next_followup_at = at(tomorrow)
+    rows["Due Later"].next_followup_at = at(today + timedelta(days=20))
+    rows["Closed Lead"].status = InquiryStatus.WON
+    rows["Closed Lead"].next_followup_at = None
+    db.commit()
+
+    query = f"date_field=followup&date_from={tomorrow}&date_to={tomorrow}&view=all&assigned="
+    page = client.get(f"/inquiries?{query}").text
+    assert "Due Tomorrow" in page and "Due Later" not in page and "Closed Lead" not in page
+    assert "follow-up due" in page and "Download these 1 as CSV" in page
+    assert ">Tomorrow</a>" in page  # quick range buttons
+
+    response = client.get(f"/inquiries/export.csv?{query}")
+    assert response.status_code == 200
+    assert f"followup-{tomorrow}_to_{tomorrow}" in response.headers["content-disposition"]
+    records = list(csv.DictReader(io.StringIO(response.text.lstrip("﻿"))))
+    assert [r["customer_name"] for r in records] == ["Due Tomorrow"]
+
+    # the default (logged date) still works and includes all three logged today
+    logged = client.get(f"/inquiries?date_from={today}&date_to={today}&view=all&assigned=").text
+    assert all(name in logged for name in ("Due Tomorrow", "Due Later", "Closed Lead"))
+
+
+def test_filter_by_planned_purchase_date(client, make_user, channels, db, settings):
+    from datetime import timedelta
+
+    from app.db import utcnow
+
+    login(client, make_user(Role.COORDINATOR))
+    planned = utcnow().astimezone(settings.tz).date() + timedelta(days=9)
+    _new_inquiry(
+        client,
+        channels[0].id,
+        phone="0771111111",
+        customer_name="Has Date",
+        timeframe="on_date",
+        planned_date=planned.isoformat(),
+    )
+    _new_inquiry(client, channels[0].id, phone="0772222222", customer_name="No Date")
+    page = client.get(
+        f"/inquiries?date_field=purchase&date_from={planned}&date_to={planned}&assigned="
+    ).text
+    assert "Has Date" in page and "No Date" not in page

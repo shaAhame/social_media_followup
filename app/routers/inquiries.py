@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -106,7 +106,32 @@ def _filters_from_query(request: Request, user: User) -> svc.InquiryFilters:
         timeframe=Timeframe(timeframe) if timeframe in {t.value for t in Timeframe} else None,
         date_from=_parse_date(qp.get("date_from")),
         date_to=_parse_date(qp.get("date_to")),
+        date_field=qp.get("date_field") if qp.get("date_field") in svc.DATE_FIELDS else "logged",
     )
+
+
+def _due_presets() -> list[tuple[str, date, date]]:
+    """One-click ranges for 'follow-up due' (local dates)."""
+    today = utcnow().astimezone(get_settings().tz).date()
+    tomorrow = today + timedelta(days=1)
+    month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    return [
+        ("Today", today, today),
+        ("Tomorrow", tomorrow, tomorrow),
+        ("Next 7 days", today, today + timedelta(days=6)),
+        ("Rest of this month", today, month_end),
+    ]
+
+
+def _list_order(filters: svc.InquiryFilters) -> tuple:
+    """Sort by the date the user is filtering on; open leads by next follow-up."""
+    if filters.date_field == "followup" or (
+        filters.view == "open" and filters.date_field != "purchase"
+    ):
+        return (Inquiry.next_followup_at.is_(None), Inquiry.next_followup_at, Inquiry.id.desc())
+    if filters.date_field == "purchase":
+        return (Inquiry.planned_date.is_(None), Inquiry.planned_date, Inquiry.id.desc())
+    return (Inquiry.created_at.desc(),)
 
 
 # ---------------------------------------------------------------- list & export
@@ -121,10 +146,7 @@ def list_inquiries(
     filters = _filters_from_query(request, user)
     stmt = svc.filtered_inquiries(filters, user, settings)
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
-    if filters.view == "open":
-        order = (Inquiry.next_followup_at.is_(None), Inquiry.next_followup_at, Inquiry.id.desc())
-    else:
-        order = (Inquiry.created_at.desc(),)
+    order = _list_order(filters)
     rows = list(
         db.scalars(stmt.order_by(*order).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE)).unique()
     )
@@ -139,6 +161,8 @@ def list_inquiries(
             "pages": max(1, -(-total // PAGE_SIZE)),
             "channels": active_channels(db),
             "sales_people": active_users(db),
+            "date_fields": svc.DATE_FIELDS,
+            "due_presets": _due_presets(),
         },
     )
 
@@ -150,9 +174,12 @@ def export_csv(
     settings = get_settings()
     filters = _filters_from_query(request, user)
     rows = db.scalars(
-        svc.filtered_inquiries(filters, user, settings).order_by(Inquiry.created_at.desc())
+        svc.filtered_inquiries(filters, user, settings).order_by(*_list_order(filters))
     ).unique()
     stamp = utcnow().astimezone(settings.tz).strftime("%Y%m%d-%H%M")
+    if filters.date_from or filters.date_to:
+        span = f"{filters.date_from or 'start'}_to_{filters.date_to or 'end'}"
+        stamp = f"{filters.date_field}-{span}-{stamp}"
     return Response(
         content="﻿" + inquiries_to_csv(rows, settings),  # BOM so Excel reads UTF-8
         media_type="text/csv; charset=utf-8",

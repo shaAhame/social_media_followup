@@ -10,52 +10,81 @@
   </div>
 </div>
 
-<form method="get" class="filters" data-autosubmit>
-  <div class="field grow">
-    <label for="q">Search</label>
-    <input id="q" type="search" name="q" value="{{ filters.q or '' }}" placeholder="Phone, name or product">
+<form method="get" class="card list-filters" data-autosubmit>
+  <div class="filters">
+    <div class="field grow">
+      <label for="q">Search</label>
+      <input id="q" type="search" name="q" value="{{ filters.q or '' }}" placeholder="Phone, name or product">
+    </div>
+    <div class="field">
+      <label for="view">Status</label>
+      <select id="view" name="view">
+        <option value="open" {{ 'selected' if filters.view == 'open' }}>All open</option>
+        <option value="all" {{ 'selected' if filters.view == 'all' }}>Everything</option>
+        {% for value, label in InquiryStatus.choices() %}<option value="{{ value }}" {{ 'selected' if filters.view == value }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="channel_id">Source</label>
+      <select id="channel_id" name="channel_id">
+        <option value="">All sources</option>
+        {% for c in channels %}<option value="{{ c.id }}" {{ 'selected' if filters.channel_id == c.id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="assigned">Salesperson</label>
+      <select id="assigned" name="assigned">
+        <option value="" {{ 'selected' if not filters.assigned }}>Anyone</option>
+        <option value="me" {{ 'selected' if filters.assigned == 'me' }}>Me</option>
+        <option value="none" {{ 'selected' if filters.assigned == 'none' }}>Unassigned</option>
+        {% for p in sales_people %}<option value="{{ p.id }}" {{ 'selected' if filters.assigned == p.id|string }}>{{ p.full_name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="timeframe">Customer said they'll buy</label>
+      <select id="timeframe" name="timeframe">
+        <option value="">Any time</option>
+        {% for value, label in Timeframe.choices() %}<option value="{{ value }}" {{ 'selected' if filters.timeframe and filters.timeframe.value == value }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
   </div>
-  <div class="field">
-    <label for="view">Status</label>
-    <select id="view" name="view">
-      <option value="open" {{ 'selected' if filters.view == 'open' }}>All open</option>
-      <option value="all" {{ 'selected' if filters.view == 'all' }}>Everything</option>
-      {% for value, label in InquiryStatus.choices() %}<option value="{{ value }}" {{ 'selected' if filters.view == value }}>{{ label }}</option>{% endfor %}
-    </select>
+
+  <div class="filters date-range">
+    <div class="field">
+      <label for="date_field">Date range applies to</label>
+      <select id="date_field" name="date_field">
+        {% for value, label in date_fields.items() %}<option value="{{ value }}" {{ 'selected' if filters.date_field == value }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label for="date_from">From</label><input id="date_from" type="date" name="date_from" value="{{ filters.date_from or '' }}"></div>
+    <div class="field"><label for="date_to">To</label><input id="date_to" type="date" name="date_to" value="{{ filters.date_to or '' }}"></div>
+    <button class="btn btn-primary" type="submit">Show</button>
+    {% if filters.date_from or filters.date_to %}<a class="btn" href="{{ query_with(request, date_from=None, date_to=None, date_field=None, page=None) }}">Clear dates</a>{% endif %}
   </div>
-  <div class="field">
-    <label for="channel_id">Source</label>
-    <select id="channel_id" name="channel_id">
-      <option value="">All sources</option>
-      {% for c in channels %}<option value="{{ c.id }}" {{ 'selected' if filters.channel_id == c.id }}>{{ c.name }}</option>{% endfor %}
-    </select>
+
+  <div class="quick">
+    <span class="muted">Follow-ups due:</span>
+    {% for label, start, end in due_presets %}
+      {% set active = filters.date_field == 'followup' and filters.date_from == start and filters.date_to == end %}
+      <a class="chip {{ 'is-active' if active }}" href="{{ query_with(request, date_field='followup', date_from=start|string, date_to=end|string, view='open', page=None) }}">{{ label }}</a>
+    {% endfor %}
   </div>
-  <div class="field">
-    <label for="assigned">Salesperson</label>
-    <select id="assigned" name="assigned">
-      <option value="" {{ 'selected' if not filters.assigned }}>Anyone</option>
-      <option value="me" {{ 'selected' if filters.assigned == 'me' }}>Me</option>
-      <option value="none" {{ 'selected' if filters.assigned == 'none' }}>Unassigned</option>
-      {% for p in sales_people %}<option value="{{ p.id }}" {{ 'selected' if filters.assigned == p.id|string }}>{{ p.full_name }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="field">
-    <label for="timeframe">Time period</label>
-    <select id="timeframe" name="timeframe">
-      <option value="">Any</option>
-      {% for value, label in Timeframe.choices() %}<option value="{{ value }}" {{ 'selected' if filters.timeframe and filters.timeframe.value == value }}>{{ label }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="field"><label for="date_from">From</label><input id="date_from" type="date" name="date_from" value="{{ filters.date_from or '' }}"></div>
-  <div class="field"><label for="date_to">To</label><input id="date_to" type="date" name="date_to" value="{{ filters.date_to or '' }}"></div>
-  <button class="btn" type="submit">Filter</button>
 </form>
+
+{% if filters.date_from or filters.date_to %}
+<p class="range-note">
+  Showing {{ total }} inquir{{ 'y' if total == 1 else 'ies' }} where <strong>{{ date_fields[filters.date_field]|lower }}</strong>
+  {% if filters.date_from and filters.date_to and filters.date_from == filters.date_to %}is {{ filters.date_from.strftime('%a %d %b %Y').replace(' 0', ' ') }}
+  {% else %}is {% if filters.date_from %}from {{ filters.date_from.strftime('%d %b %Y').lstrip('0') }} {% endif %}{% if filters.date_to %}to {{ filters.date_to.strftime('%d %b %Y').lstrip('0') }}{% endif %}{% endif %}.
+  {% if user.can_manage %}<a href="/inquiries/export.csv{{ query_with(request, page=None) }}">Download these {{ total }} as CSV</a>{% endif %}
+</p>
+{% endif %}
 
 {% if rows %}
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>#</th><th>Customer</th><th>Product</th><th>Period</th><th>Status</th><th>Source</th><th>Salesperson</th><th>Next follow-up</th><th>Logged</th></tr>
+      <tr><th>#</th><th>Customer</th><th>Product</th><th>Buying</th><th>Status</th><th>Source</th><th>Salesperson</th><th>Next follow-up</th><th>Logged</th></tr>
     </thead>
     <tbody>
     {% for i in rows %}
@@ -65,7 +94,7 @@
         <td>{{ i.product_text }}</td>
         <td>{{ m.timeframe_badge(i.timeframe, i) }}</td>
         <td>{{ m.status_badge(i.status) }}</td>
-        <td>{{ i.channel.name }}</td>
+        <td class="source-cell" title="{{ i.channel.name }}">{{ i.channel.name }}</td>
         <td>{{ i.assigned_to.full_name if i.assigned_to else '—' }}</td>
         <td class="due-cell nowrap">{% if i.is_open %}{{ i.next_followup_at|smartdt if i.next_followup_at else 'Needs decision' }}{% else %}—{% endif %}</td>
         <td class="nowrap">{{ i.created_at|localdt('%d %b %Y') }}</td>
@@ -75,9 +104,9 @@
   </table>
 </div>
 <div class="pagination">
-  {% if page > 1 %}<a class="btn btn-small" href="{{ query_with(request, page=page-1) }}">← Previous</a>{% endif %}
+  {% if page > 1 %}<a class="btn btn-small" href="{{ query_with(request, page=page-1) }}">Previous page</a>{% endif %}
   <span class="muted">Page {{ page }} of {{ pages }}</span>
-  {% if page < pages %}<a class="btn btn-small" href="{{ query_with(request, page=page+1) }}">Next →</a>{% endif %}
+  {% if page < pages %}<a class="btn btn-small" href="{{ query_with(request, page=page+1) }}">Next page</a>{% endif %}
 </div>
 {% else %}
 <div class="empty">No inquiries match these filters.</div>

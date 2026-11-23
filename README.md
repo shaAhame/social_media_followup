@@ -183,5 +183,5 @@ app/
   templates/ static/ server-rendered UI (no build step)
   cli.py             create-user, seed-demo
 alembic/             database migrations
-tests/               117 tests (services, web flows, API, reports, migrations)
+tests/               119 tests (services, web flows, API, reports, migrations)
 ```
